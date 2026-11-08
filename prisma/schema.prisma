@@ -1,0 +1,103 @@
+// Trifold stock management data model.
+// SQLite is used for local development; switch `provider` to "postgresql"
+// for production deployments.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// Role is one of ADMIN | MANAGER | STAFF (see lib/permissions.ts).
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  name         String
+  passwordHash String
+  role         String     @default("STAFF")
+  active       Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  sessions     Session[]
+  movements    Movement[]
+}
+
+/// `id` is the SHA-256 hash of the session token stored in the cookie.
+model Session {
+  id        String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Location {
+  id            String       @id @default(cuid())
+  code          String       @unique
+  name          String
+  address       String?
+  active        Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  stock         StockLevel[]
+  movementsFrom Movement[]   @relation("MovementFrom")
+  movementsTo   Movement[]   @relation("MovementTo")
+}
+
+model Product {
+  id           String       @id @default(cuid())
+  sku          String       @unique
+  name         String
+  description  String?
+  category     String?
+  unit         String       @default("pcs")
+  /// Unit cost in minor currency units (e.g. pence/kobo) to avoid float rounding.
+  costCents    Int          @default(0)
+  reorderLevel Int          @default(0)
+  active       Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  stock        StockLevel[]
+  movements    Movement[]
+}
+
+model StockLevel {
+  productId  String
+  locationId String
+  quantity   Int      @default(0)
+  updatedAt  DateTime @updatedAt
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@id([productId, locationId])
+  @@index([locationId])
+}
+
+/// type is one of RECEIPT | ISSUE | TRANSFER | ADJUSTMENT (see lib/stock.ts).
+/// RECEIPT: into toLocation. ISSUE: out of fromLocation.
+/// TRANSFER: fromLocation -> toLocation. ADJUSTMENT: stock count correction
+/// at toLocation; `quantity` is the signed change.
+model Movement {
+  id             String    @id @default(cuid())
+  type           String
+  productId      String
+  product        Product   @relation(fields: [productId], references: [id])
+  fromLocationId String?
+  fromLocation   Location? @relation("MovementFrom", fields: [fromLocationId], references: [id])
+  toLocationId   String?
+  toLocation     Location? @relation("MovementTo", fields: [toLocationId], references: [id])
+  quantity       Int
+  reference      String?
+  note           String?
+  userId         String
+  user           User      @relation(fields: [userId], references: [id])
+  createdAt      DateTime  @default(now())
+
+  @@index([productId, createdAt])
+  @@index([createdAt])
+}
