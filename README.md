@@ -83,5 +83,5 @@ tests/                   Vitest tests
   With SQLite, keep `?connection_limit=1` in the URL. It makes concurrent stock
   movements queue instead of deadlocking.
 - **HTTPS**: the session cookie is marked `Secure` in production, so serve the app over HTTPS.
-- **Currency**: amounts are shown in GBP by default. Set `NEXT_PUBLIC_CURRENCY`
-  (for example `NGN` or `USD`) before building.
+- **Currency**: amounts are shown in naira (NGN) by default. Set `NEXT_PUBLIC_CURRENCY`
+  (for example `USD`) before building to change it.

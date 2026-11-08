@@ -22,10 +22,10 @@ async function main() {
     prisma.location.create({ data: { code: "SHOP-01", name: "Shop Floor" } }),
   ]);
   const demo = [
-    { sku: "TF-PAPER-A4", name: "A4 Paper (500 sheets)", category: "Stationery", unit: "ream", costCents: 450, reorderLevel: 40, qty: 120 },
-    { sku: "TF-TONER-BK", name: "Black Toner Cartridge", category: "Printing", unit: "pcs", costCents: 3899, reorderLevel: 10, qty: 8 },
-    { sku: "TF-FOLDER", name: "Trifold Display Folder", category: "Display", unit: "pcs", costCents: 125, reorderLevel: 100, qty: 600 },
-    { sku: "TF-BOX-M", name: "Shipping Box (Medium)", category: "Packaging", unit: "pcs", costCents: 85, reorderLevel: 50, qty: 0 },
+    { sku: "TF-PAPER-A4", name: "A4 Paper (500 sheets)", category: "Stationery", unit: "ream", costCents: 650000, reorderLevel: 40, qty: 120 },
+    { sku: "TF-TONER-BK", name: "Black Toner Cartridge", category: "Printing", unit: "pcs", costCents: 4500000, reorderLevel: 10, qty: 8 },
+    { sku: "TF-FOLDER", name: "Trifold Display Folder", category: "Display", unit: "pcs", costCents: 35000, reorderLevel: 100, qty: 600 },
+    { sku: "TF-BOX-M", name: "Shipping Box (Medium)", category: "Packaging", unit: "pcs", costCents: 80000, reorderLevel: 50, qty: 0 },
   ];
   for (const { qty, ...p } of demo) {
     const product = await prisma.product.create({ data: p });

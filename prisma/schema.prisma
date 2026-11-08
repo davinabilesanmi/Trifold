@@ -56,7 +56,7 @@ model Product {
   description  String?
   category     String?
   unit         String       @default("pcs")
-  /// Unit cost in minor currency units (e.g. pence/kobo) to avoid float rounding.
+  /// Unit cost in minor currency units (e.g. kobo) to avoid float rounding.
   costCents    Int          @default(0)
   reorderLevel Int          @default(0)
   active       Boolean      @default(true)

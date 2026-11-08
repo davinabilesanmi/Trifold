@@ -1,15 +1,20 @@
-const CURRENCY = process.env.NEXT_PUBLIC_CURRENCY ?? "GBP";
+const CURRENCY = process.env.NEXT_PUBLIC_CURRENCY ?? "NGN";
+const LOCALE = "en-NG";
 
-export function formatMoney(cents: number) {
-  return new Intl.NumberFormat("en-GB", { style: "currency", currency: CURRENCY }).format(cents / 100);
+export function formatMoney(cents: number, { whole = false } = {}) {
+  return new Intl.NumberFormat(LOCALE, {
+    style: "currency",
+    currency: CURRENCY,
+    ...(whole ? { maximumFractionDigits: 0, minimumFractionDigits: 0 } : {}),
+  }).format(whole ? Math.round(cents / 100) : cents / 100);
 }
 
 export function formatNumber(n: number) {
-  return new Intl.NumberFormat("en-GB").format(n);
+  return new Intl.NumberFormat(LOCALE).format(n);
 }
 
 export function formatDateTime(d: Date) {
-  return new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" }).format(d);
+  return new Intl.DateTimeFormat(LOCALE, { dateStyle: "medium", timeStyle: "short" }).format(d);
 }
 
 /** Parses a user-entered price like "12.50" into integer cents. */

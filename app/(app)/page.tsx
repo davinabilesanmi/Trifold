@@ -35,7 +35,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         <div className="stat"><div className="stat-label">Active products</div><div className="stat-value">{formatNumber(products.length)}</div></div>
         <div className="stat"><div className="stat-label">Locations</div><div className="stat-value">{formatNumber(locationCount)}</div></div>
         <div className="stat"><div className="stat-label">Units on hand</div><div className="stat-value">{formatNumber(totalUnits)}</div></div>
-        <div className="stat"><div className="stat-label">Stock value (at cost)</div><div className="stat-value">{formatMoney(stockValue)}</div></div>
+        <div className="stat"><div className="stat-label">Stock value (at cost)</div><div className="stat-value">{formatMoney(stockValue, { whole: true })}</div></div>
         <div className={attention.length ? "stat stat-warn" : "stat"}>
           <div className="stat-label">Need reordering</div><div className="stat-value">{formatNumber(attention.length)}</div>
         </div>

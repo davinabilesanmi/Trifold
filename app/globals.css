@@ -98,10 +98,10 @@ h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
 .card + .card, .stack > * + * { margin-top: 1.25rem; }
 .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 1.25rem; align-items: start; }
 .grid-2 > .card + .card { margin-top: 0; }
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
 .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; box-shadow: var(--shadow); }
 .stat-label { color: var(--muted); font-size: 0.85rem; }
-.stat-value { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat-value { font-size: clamp(1.25rem, 1.6vw, 1.6rem); white-space: nowrap; font-weight: 700; font-variant-numeric: tabular-nums; }
 .stat-warn .stat-value { color: var(--warn); }
 .section-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
 
