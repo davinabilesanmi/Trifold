@@ -22,14 +22,29 @@ export function ProductFields({ product }: { product?: Product }) {
         <div className="field">
           <label htmlFor="unit">Unit</label>
           <input id="unit" name="unit" type="text" maxLength={20} defaultValue={product?.unit ?? "pcs"} />
-          <span className="hint">e.g. pcs, box, kg, litre</span>
+          <span className="hint">e.g. bottle, carton, drum, litre</span>
         </div>
       </div>
       <div className="form-row">
         <div className="field">
-          <label htmlFor="cost">Unit cost</label>
+          <label htmlFor="priceRetail">Retail price (₦)</label>
+          <input id="priceRetail" name="priceRetail" type="text" inputMode="decimal" placeholder="0.00"
+            defaultValue={product ? centsToInput(product.priceRetailCents) : ""} />
+          <span className="hint">Walk-in and retail customers</span>
+        </div>
+        <div className="field">
+          <label htmlFor="priceWholesale">Wholesale price (₦)</label>
+          <input id="priceWholesale" name="priceWholesale" type="text" inputMode="decimal" placeholder="0.00"
+            defaultValue={product ? centsToInput(product.priceWholesaleCents) : ""} />
+          <span className="hint">Dealers, mechanics and other wholesale customers</span>
+        </div>
+      </div>
+      <div className="form-row">
+        <div className="field">
+          <label htmlFor="cost">Unit cost (₦)</label>
           <input id="cost" name="cost" type="text" inputMode="decimal" placeholder="0.00"
             defaultValue={product ? centsToInput(product.costCents) : ""} />
+          <span className="hint">What Trifold pays. Updated automatically when a purchase order is received.</span>
         </div>
         <div className="field">
           <label htmlFor="reorderLevel">Reorder level</label>

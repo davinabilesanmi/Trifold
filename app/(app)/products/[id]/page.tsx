@@ -93,6 +93,8 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
             <dl className="details">
               <dt>Category</dt><dd>{product.category ?? "—"}</dd>
               <dt>Unit</dt><dd>{product.unit}</dd>
+              <dt>Retail price</dt><dd>{formatMoney(product.priceRetailCents)}</dd>
+              <dt>Wholesale price</dt><dd>{formatMoney(product.priceWholesaleCents)}</dd>
               <dt>Unit cost</dt><dd>{formatMoney(product.costCents)}</dd>
               <dt>Reorder level</dt><dd>{formatNumber(product.reorderLevel)}</dd>
               <dt>Description</dt><dd>{product.description ?? "—"}</dd>

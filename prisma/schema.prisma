@@ -62,11 +62,13 @@ model Product {
   description         String?
   category            String?
   unit                String              @default("pcs")
-  /// Money is stored in minor units (kobo) to avoid float rounding.
+  /// Money is stored as whole kobo. The columns are Float (64-bit) rather than
+  /// Int (32-bit, max ~₦21.4m) so large invoices fit; values are always whole
+  /// numbers, which a 64-bit float holds exactly up to ~₦90 trillion.
   /// costCents is the latest purchase cost, updated when stock is received on a purchase order.
-  costCents           Int                 @default(0)
-  priceRetailCents    Int                 @default(0)
-  priceWholesaleCents Int                 @default(0)
+  costCents           Float               @default(0)
+  priceRetailCents    Float               @default(0)
+  priceWholesaleCents Float               @default(0)
   reorderLevel        Int                 @default(0)
   active              Boolean             @default(true)
   createdAt           DateTime            @default(now())
@@ -156,7 +158,7 @@ model Sale {
   location     Location   @relation(fields: [locationId], references: [id])
   priceLevel   String
   status       String     @default("COMPLETED")
-  totalCents   Int
+  totalCents   Float
   note         String?
   userId       String
   user         User       @relation(fields: [userId], references: [id])
@@ -178,9 +180,9 @@ model SaleLine {
   productId      String
   product        Product @relation(fields: [productId], references: [id])
   quantity       Int
-  unitPriceCents Int
+  unitPriceCents Float
   /// Cost at the time of sale, for profit reporting.
-  unitCostCents  Int
+  unitCostCents  Float
 
   @@index([saleId])
   @@index([productId])
@@ -192,7 +194,7 @@ model Payment {
   id          String   @id @default(cuid())
   saleId      String
   sale        Sale     @relation(fields: [saleId], references: [id])
-  amountCents Int
+  amountCents Float
   method      String
   reference   String?
   userId      String
@@ -247,7 +249,7 @@ model PurchaseOrderLine {
   product          Product       @relation(fields: [productId], references: [id])
   quantity         Int
   receivedQuantity Int           @default(0)
-  unitCostCents    Int
+  unitCostCents    Float
 
   @@index([purchaseOrderId])
 }
@@ -256,7 +258,7 @@ model SupplierPayment {
   id              String        @id @default(cuid())
   purchaseOrderId String
   purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
-  amountCents     Int
+  amountCents     Float
   method          String
   reference       String?
   userId          String

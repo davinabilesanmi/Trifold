@@ -16,6 +16,8 @@ const productSchema = z.object({
   category: z.string().trim().max(60).optional().default(""),
   unit: z.string().trim().max(20).optional().default("pcs"),
   cost: z.string().optional().default(""),
+  priceRetail: z.string().optional().default(""),
+  priceWholesale: z.string().optional().default(""),
   reorderLevel: z.coerce
     .number({ message: "Reorder level must be a number." })
     .int("Reorder level must be a whole number.")
@@ -26,7 +28,11 @@ function toData(formData: FormData) {
   const parsed = productSchema.safeParse(formToObject(formData));
   if (!parsed.success) return { error: firstIssue(parsed.error) } as const;
   const costCents = parseMoneyToCents(parsed.data.cost);
-  if (costCents === null) return { error: "Unit cost must be a number like 12.50." } as const;
+  const priceRetailCents = parseMoneyToCents(parsed.data.priceRetail);
+  const priceWholesaleCents = parseMoneyToCents(parsed.data.priceWholesale);
+  if (costCents === null) return { error: "Unit cost must be an amount like 6500 or 6,500.00." } as const;
+  if (priceRetailCents === null) return { error: "Retail price must be an amount like 8500 or 8,500.00." } as const;
+  if (priceWholesaleCents === null) return { error: "Wholesale price must be an amount like 8000 or 8,000.00." } as const;
   const d = parsed.data;
   return {
     data: {
@@ -36,6 +42,8 @@ function toData(formData: FormData) {
       category: d.category || null,
       unit: d.unit || "pcs",
       costCents,
+      priceRetailCents,
+      priceWholesaleCents,
       reorderLevel: d.reorderLevel,
     },
   } as const;

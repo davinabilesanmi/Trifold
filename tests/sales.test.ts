@@ -87,6 +87,20 @@ describe("createSale", () => {
   });
 });
 
+describe("large amounts", () => {
+  it("handles invoices above ₦21.4 million (beyond a 32-bit integer of kobo)", async () => {
+    await recordMovement(prisma, { type: "RECEIPT", productId: oil, toLocationId: shop, quantity: 5000 }, userId);
+    const sale = await createSale(prisma, { customerId: customer, locationId: shop, priceLevel: "RETAIL",
+      lines: [{ productId: oil, quantity: 2000 }], payment: cash(1_000_000_000) }, userId);
+    expect(sale.totalCents).toBe(3_000_000_000); // ₦30,000,000
+    const stored = await prisma.sale.findUniqueOrThrow({ where: { id: sale.id } });
+    expect(stored.totalCents).toBe(3_000_000_000);
+    await recordSalePayment(prisma, sale.id, cash(2_000_000_000), userId);
+    const agg = await prisma.payment.aggregate({ where: { saleId: sale.id }, _sum: { amountCents: true } });
+    expect(agg._sum.amountCents).toBe(3_000_000_000);
+  });
+});
+
 describe("payments and cancellation", () => {
   it("takes part payments up to the balance", async () => {
     const sale = await createSale(prisma, { customerId: customer, locationId: shop, priceLevel: "WHOLESALE",

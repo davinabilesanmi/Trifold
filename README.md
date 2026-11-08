@@ -6,24 +6,24 @@ control who can do what.
 
 ## Features
 
-- **Products**: SKU, category, unit, unit cost and a reorder level. Stock is flagged *Low* or *Out* across all locations.
-- **Locations**: warehouses, shops or other sites, each with its own stock levels and value.
-- **Stock movements**, each logged with who, when, a reference and a note:
-  - **Receive**: stock arriving at a location (for example a supplier delivery)
-  - **Issue**: stock leaving a location (sale, dispatch, write-off)
-  - **Transfer**: from one location to another
-  - **Adjust**: set a location's quantity to a physical count. The difference is recorded.
-- **No negative stock.** Issues and transfers that would oversell are refused, even when several are recorded at the same time.
-- **Dashboard**: total units, stock value at cost, items to reorder, and recent activity.
-- **Users and roles**:
+- **Sales and invoices**: sell from any location at retail or wholesale prices. Each sale gets an invoice number (INV-000001) and a printable invoice with Trifold's details and bank account.
+- **Credit and payments**: sales can be paid in full, part-paid or on credit (credit needs a named customer). Take later payments against an invoice and see who owes what. Cancelling a sale returns the stock and records a refund.
+- **Customers**: marked retail or wholesale, which sets the prices they pay. Each customer shows their invoices and balance.
+- **Suppliers and purchase orders**: order stock (PO-000001) and receive deliveries in full or in parts. Receiving adds stock and updates the product's cost. Pay suppliers in advance or after delivery and track what Trifold owes.
+- **Products**: SKU, category, unit, cost, and retail and wholesale prices, plus a reorder level that flags *Low* or *Out* across all locations.
+- **Locations** and **stock movements**: receive, issue, transfer and adjust (to a physical count), each logged with who, when and why. Stock can never go negative, even under simultaneous sales.
+- **Reports**: revenue, cost of goods sold and gross profit for any date range; sales by product; money received by payment method; stock value; customers who owe and suppliers owed. Every report downloads as a CSV file that opens in Excel.
+- **Dashboard**: today's sales, money owed both ways, stock value, reorder alerts and expected deliveries.
+- **Roles**:
 
-  | Role    | View stock | Record movements | Manage products and locations | Manage users |
-  |---------|:---:|:---:|:---:|:---:|
-  | Staff   | ✓ | ✓ |   |   |
-  | Manager | ✓ | ✓ | ✓ |   |
-  | Admin   | ✓ | ✓ | ✓ | ✓ |
+  | Role    | Sell, take payments, receive deliveries, move stock | Change prices on a sale, cancel sales | Products, locations, suppliers, purchase orders | Reports | Users and settings |
+  |---------|:---:|:---:|:---:|:---:|:---:|
+  | Staff   | ✓ |   |   |   |   |
+  | Manager | ✓ | ✓ | ✓ | ✓ |   |
+  | Admin   | ✓ | ✓ | ✓ | ✓ | ✓ |
 
-- Products and locations are **archived** rather than deleted, so their history is kept.
+- Products, locations, customers and suppliers are **archived** rather than deleted, so history is kept.
+- Amounts are in **naira**. Money is stored as whole kobo, so totals never suffer rounding errors.
 
 ## Tech stack
 
@@ -43,8 +43,10 @@ npm run dev                 # http://localhost:3000
 ```
 
 Sign in with `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` from `.env`. The default
-is `admin@trifold.local` / `ChangeMe123!`. **Change it** on the *Your account* page.
-Set `SEED_DEMO_DATA="false"` to skip the sample locations and products.
+is `admin@trifold.local` / `ChangeMe123!`. **Change it** on the *Your account* page,
+then fill in Trifold's address and bank details under *Settings*.
+The seed adds a sample engine-oil catalogue, suppliers, customers, a purchase order and sales.
+Set `SEED_DEMO_DATA="false"` to start with only the admin account.
 
 ## Scripts
 
@@ -64,10 +66,15 @@ app/
   login/                 Sign-in page
   (app)/                 Signed-in area (layout checks the session)
     page.tsx             Dashboard
-    products/ locations/ movements/ users/ account/
+    sales/ customers/ products/ movements/ locations/
+    purchases/ suppliers/ reports/ users/ settings/ account/
+  api/export/[report]/   CSV downloads
 components/              Shared UI (forms, tables, badges)
 lib/
   stock.ts               Movement rules and stock-level updates (transactional)
+  sales.ts               Sales, customer payments and cancellations
+  purchasing.ts          Purchase orders, receiving and supplier payments
+  reports.ts, csv.ts     Report queries and CSV export
   auth.ts                Sessions (hashed tokens in the DB, httpOnly cookie) and passwords
   permissions.ts         Roles and permission checks
   actions/               Server actions for each area

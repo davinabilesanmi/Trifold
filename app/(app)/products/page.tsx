@@ -48,7 +48,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
         <div className="table-wrap">
           <table className="table">
             <thead>
-              <tr><th>Product</th><th>SKU</th><th>Category</th><th className="num">On hand</th><th className="num">Reorder at</th><th className="num">Unit cost</th><th>Status</th></tr>
+              <tr><th>Product</th><th>SKU</th><th>Category</th><th className="num">On hand</th><th className="num">Retail</th><th className="num">Wholesale</th><th>Status</th></tr>
             </thead>
             <tbody>
               {products.map((p) => (
@@ -57,8 +57,8 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
                   <td className="nowrap">{p.sku}</td>
                   <td>{p.category}</td>
                   <td className="num nowrap">{formatNumber(p.onHand)} <span className="muted small">{p.unit}</span></td>
-                  <td className="num">{formatNumber(p.reorderLevel)}</td>
-                  <td className="num">{formatMoney(p.costCents)}</td>
+                  <td className="num nowrap">{formatMoney(p.priceRetailCents)}</td>
+                  <td className="num nowrap">{formatMoney(p.priceWholesaleCents)}</td>
                   <td>{p.active ? <StatusBadge status={p.status} /> : <ArchivedBadge />}</td>
                 </tr>
               ))}
