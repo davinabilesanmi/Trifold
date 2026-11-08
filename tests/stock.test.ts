@@ -1,11 +1,6 @@
-import path from "node:path";
-import { PrismaClient } from "@prisma/client";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { recordMovement, StockError, stockStatus } from "@/lib/stock";
-
-const prisma = new PrismaClient({
-  datasources: { db: { url: `file:${path.resolve(__dirname, "../prisma/test.db")}?connection_limit=1` } },
-});
+import { prisma, resetDb } from "./helpers";
 
 let userId: string;
 let productId: string;
@@ -18,11 +13,7 @@ async function qty(locationId: string) {
 }
 
 beforeEach(async () => {
-  await prisma.movement.deleteMany();
-  await prisma.stockLevel.deleteMany();
-  await prisma.product.deleteMany();
-  await prisma.location.deleteMany();
-  await prisma.user.deleteMany();
+  await resetDb();
   userId = (await prisma.user.create({ data: { email: "t@t.test", name: "Tester", passwordHash: "x" } })).id;
   productId = (await prisma.product.create({ data: { sku: "SKU-1", name: "Widget" } })).id;
   a = (await prisma.location.create({ data: { code: "A", name: "Alpha" } })).id;

@@ -19,7 +19,7 @@ export function formatDateTime(d: Date) {
 
 /** Parses a user-entered price like "12.50" into integer cents. */
 export function parseMoneyToCents(input: string): number | null {
-  const trimmed = input.trim();
+  const trimmed = input.replace(/[₦,\s]/g, "");
   if (trimmed === "") return 0;
   if (!/^\d+(\.\d{1,2})?$/.test(trimmed)) return null;
   const [whole, frac = ""] = trimmed.split(".");

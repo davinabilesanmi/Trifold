@@ -7,6 +7,8 @@ describe("parseMoneyToCents", () => {
     expect(parseMoneyToCents("0.29")).toBe(29);
     expect(parseMoneyToCents("1000")).toBe(100000);
     expect(parseMoneyToCents("")).toBe(0);
+    expect(parseMoneyToCents("₦15,000")).toBe(1_500_000);
+    expect(parseMoneyToCents(" 6,500.50 ")).toBe(650_050);
   });
   it("rejects invalid input", () => {
     expect(parseMoneyToCents("abc")).toBeNull();

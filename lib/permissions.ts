@@ -9,8 +9,8 @@ export const ROLE_LABELS: Record<Role, string> = {
 
 export const ROLE_DESCRIPTIONS: Record<Role, string> = {
   ADMIN: "Everything, including managing user accounts.",
-  MANAGER: "Manage products and locations, and record stock movements.",
-  STAFF: "View stock and record stock movements.",
+  MANAGER: "Manage products, prices, suppliers and purchase orders; cancel sales; view reports.",
+  STAFF: "Make sales, take payments, receive deliveries and record stock movements.",
 };
 
 export function isRole(value: unknown): value is Role {
@@ -18,8 +18,21 @@ export function isRole(value: unknown): value is Role {
 }
 
 /** Permission checks, shared by server code and UI. */
+const managerUp = (role: Role) => role === "ADMIN" || role === "MANAGER";
+const anyone = (_role: Role) => true;
+
 export const can = {
   manageUsers: (role: Role) => role === "ADMIN",
-  manageCatalog: (role: Role) => role === "ADMIN" || role === "MANAGER",
-  recordMovements: (_role: Role) => true,
+  manageSettings: (role: Role) => role === "ADMIN",
+  manageCatalog: managerUp,
+  recordMovements: anyone,
+  sell: anyone,
+  manageCustomers: anyone,
+  takePayments: anyone,
+  /** Change a product's price on an individual sale. */
+  overridePrices: managerUp,
+  cancelSales: managerUp,
+  managePurchasing: managerUp,
+  receivePurchases: anyone,
+  viewReports: managerUp,
 };

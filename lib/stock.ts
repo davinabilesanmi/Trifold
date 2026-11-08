@@ -32,10 +32,20 @@ export type MovementInput =
 /** A business-rule violation that should be shown to the user. */
 export class StockError extends Error {}
 
-type Tx = Prisma.TransactionClient;
+export type Tx = Prisma.TransactionClient;
 
 /** Allow queued transactions to wait their turn rather than fail under load. */
-const TX_OPTIONS = { maxWait: 10_000, timeout: 10_000 };
+export const TX_OPTIONS = { maxWait: 10_000, timeout: 10_000 };
+
+/** Next sequential document number, e.g. nextNumber(tx, "INV") -> "INV-000042". */
+export async function nextNumber(tx: Tx, prefix: string) {
+  const counter = await tx.counter.upsert({
+    where: { key: prefix },
+    create: { key: prefix, value: 1 },
+    update: { value: { increment: 1 } },
+  });
+  return `${prefix}-${String(counter.value).padStart(6, "0")}`;
+}
 
 async function assertActiveProduct(tx: Tx, productId: string) {
   const product = await tx.product.findUnique({ where: { id: productId } });
@@ -84,67 +94,78 @@ async function decrement(tx: Tx, productId: string, locationId: string, qty: num
  * Throws StockError for invalid requests (e.g. insufficient stock).
  */
 export async function recordMovement(db: PrismaClient, input: MovementInput, userId: string) {
-  return db.$transaction(async (tx) => {
-    await assertActiveProduct(tx, input.productId);
-    const base = {
-      type: input.type,
-      productId: input.productId,
-      reference: input.reference?.trim() || null,
-      note: input.note?.trim() || null,
-      userId,
-    };
+  return db.$transaction((tx) => applyMovement(tx, input, userId), TX_OPTIONS);
+}
 
-    switch (input.type) {
-      case "RECEIPT": {
-        assertPositiveInt(input.quantity);
-        await assertActiveLocation(tx, input.toLocationId);
-        await increment(tx, input.productId, input.toLocationId, input.quantity);
-        return tx.movement.create({
-          data: { ...base, toLocationId: input.toLocationId, quantity: input.quantity },
-        });
-      }
-      case "ISSUE": {
-        assertPositiveInt(input.quantity);
-        const from = await assertActiveLocation(tx, input.fromLocationId);
-        await decrement(tx, input.productId, from.id, input.quantity, from.name);
-        return tx.movement.create({
-          data: { ...base, fromLocationId: from.id, quantity: input.quantity },
-        });
-      }
-      case "TRANSFER": {
-        assertPositiveInt(input.quantity);
-        if (input.fromLocationId === input.toLocationId) {
-          throw new StockError("Choose two different locations for a transfer.");
-        }
-        const from = await assertActiveLocation(tx, input.fromLocationId);
-        const to = await assertActiveLocation(tx, input.toLocationId);
-        await decrement(tx, input.productId, from.id, input.quantity, from.name);
-        await increment(tx, input.productId, to.id, input.quantity);
-        return tx.movement.create({
-          data: { ...base, fromLocationId: from.id, toLocationId: to.id, quantity: input.quantity },
-        });
-      }
-      case "ADJUSTMENT": {
-        const counted = input.countedQuantity;
-        if (!Number.isInteger(counted) || counted < 0) {
-          throw new StockError("Counted quantity must be a whole number, zero or more.");
-        }
-        const location = await assertActiveLocation(tx, input.locationId);
-        const key = { productId: input.productId, locationId: location.id };
-        const current = await tx.stockLevel.findUnique({ where: { productId_locationId: key } });
-        const delta = counted - (current?.quantity ?? 0);
-        if (delta === 0) throw new StockError("The counted quantity matches the recorded stock; nothing to adjust.");
-        await tx.stockLevel.upsert({
-          where: { productId_locationId: key },
-          create: { ...key, quantity: counted },
-          update: { quantity: counted },
-        });
-        return tx.movement.create({
-          data: { ...base, toLocationId: location.id, quantity: delta },
-        });
-      }
+/** Links a movement to the sale or purchase order that caused it. */
+export type MovementLinks = { saleId?: string; purchaseOrderId?: string };
+
+/**
+ * Applies a movement inside an existing transaction. Used by recordMovement,
+ * and by sales and purchase orders so stock and documents change together.
+ */
+export async function applyMovement(tx: Tx, input: MovementInput, userId: string, links: MovementLinks = {}) {
+  await assertActiveProduct(tx, input.productId);
+  const base = {
+    type: input.type,
+    productId: input.productId,
+    reference: input.reference?.trim() || null,
+    note: input.note?.trim() || null,
+    userId,
+    saleId: links.saleId ?? null,
+    purchaseOrderId: links.purchaseOrderId ?? null,
+  };
+
+  switch (input.type) {
+    case "RECEIPT": {
+      assertPositiveInt(input.quantity);
+      await assertActiveLocation(tx, input.toLocationId);
+      await increment(tx, input.productId, input.toLocationId, input.quantity);
+      return tx.movement.create({
+        data: { ...base, toLocationId: input.toLocationId, quantity: input.quantity },
+      });
     }
-  }, TX_OPTIONS);
+    case "ISSUE": {
+      assertPositiveInt(input.quantity);
+      const from = await assertActiveLocation(tx, input.fromLocationId);
+      await decrement(tx, input.productId, from.id, input.quantity, from.name);
+      return tx.movement.create({
+        data: { ...base, fromLocationId: from.id, quantity: input.quantity },
+      });
+    }
+    case "TRANSFER": {
+      assertPositiveInt(input.quantity);
+      if (input.fromLocationId === input.toLocationId) {
+        throw new StockError("Choose two different locations for a transfer.");
+      }
+      const from = await assertActiveLocation(tx, input.fromLocationId);
+      const to = await assertActiveLocation(tx, input.toLocationId);
+      await decrement(tx, input.productId, from.id, input.quantity, from.name);
+      await increment(tx, input.productId, to.id, input.quantity);
+      return tx.movement.create({
+        data: { ...base, fromLocationId: from.id, toLocationId: to.id, quantity: input.quantity },
+      });
+    }
+    case "ADJUSTMENT": {
+      const counted = input.countedQuantity;
+      if (!Number.isInteger(counted) || counted < 0) {
+        throw new StockError("Counted quantity must be a whole number, zero or more.");
+      }
+      const location = await assertActiveLocation(tx, input.locationId);
+      const key = { productId: input.productId, locationId: location.id };
+      const current = await tx.stockLevel.findUnique({ where: { productId_locationId: key } });
+      const delta = counted - (current?.quantity ?? 0);
+      if (delta === 0) throw new StockError("The counted quantity matches the recorded stock; nothing to adjust.");
+      await tx.stockLevel.upsert({
+        where: { productId_locationId: key },
+        create: { ...key, quantity: counted },
+        update: { quantity: counted },
+      });
+      return tx.movement.create({
+        data: { ...base, toLocationId: location.id, quantity: delta },
+      });
+    }
+  }
 }
 
 export type StockStatus = "OUT" | "LOW" | "OK";
