@@ -10,3 +10,5 @@ prisma/*.db-journal
 coverage/
 prisma/test.db*
 screenshots/
+*.db
+*.db-journal
