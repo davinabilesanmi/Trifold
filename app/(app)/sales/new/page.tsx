@@ -16,7 +16,10 @@ export default async function NewSalePage({ searchParams }: { searchParams: Prom
   const [products, customers, locations, levels] = await Promise.all([
     prisma.product.findMany({
       where: { active: true }, orderBy: { name: "asc" },
-      select: { id: true, name: true, sku: true, unit: true, priceRetailCents: true, priceWholesaleCents: true },
+      select: {
+        id: true, name: true, sku: true, unit: true, priceRetailCents: true, priceWholesaleCents: true,
+        packs: { where: { active: true }, orderBy: { unitsPerPack: "asc" }, select: { id: true, name: true, unitsPerPack: true, priceRetailCents: true, priceWholesaleCents: true } },
+      },
     }),
     prisma.customer.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true, type: true } }),
     prisma.location.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true, code: true } }),
@@ -38,7 +41,7 @@ export default async function NewSalePage({ searchParams }: { searchParams: Prom
               customers={customers}
               locations={locations}
               stock={stock}
-              canOverridePrices={can.overridePrices(user.role)}
+              canOverridePrices={can.overridePrices(user)}
               defaultCustomerId={customers.some((c) => c.id === customer) ? customer : undefined}
             />
             <div className="form-actions">

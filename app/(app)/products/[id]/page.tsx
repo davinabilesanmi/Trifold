@@ -12,6 +12,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { ProductFields } from "@/components/ProductFields";
 import { ArchivedBadge, StatusBadge } from "@/components/Badges";
 import { MovementTable, movementRowInclude } from "@/components/MovementTable";
+import { PackSizes } from "@/components/PackSizes";
 
 export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
@@ -20,6 +21,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
     where: { id },
     include: {
       stock: { include: { location: true }, orderBy: { location: { name: "asc" } } },
+      packs: { orderBy: { unitsPerPack: "asc" } },
       movements: { orderBy: { createdAt: "desc" }, take: 25, include: movementRowInclude },
     },
   });
@@ -28,7 +30,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   const activeStock = product.stock.filter((s) => s.location.active && s.quantity !== 0);
   const onHand = activeStock.reduce((sum, s) => sum + s.quantity, 0);
   const status = stockStatus(onHand, product.reorderLevel);
-  const manage = can.manageCatalog(user.role);
+  const manage = can.manageCatalog(user);
   const back = encodeURIComponent(`/products/${product.id}`);
 
   return (
@@ -36,7 +38,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
       <PageHeader
         title={product.name}
         subtitle={<>{product.sku} · {product.active ? <StatusBadge status={status} /> : <ArchivedBadge />}</>}
-        actions={product.active && (
+        actions={product.active && can.recordMovements(user) && (
           <>
             <Link className="btn btn-primary" href={`/movements/new?type=RECEIPT&product=${product.id}&returnTo=${back}`}>Receive</Link>
             <Link className="btn btn-secondary" href={`/movements/new?type=ISSUE&product=${product.id}&returnTo=${back}`}>Issue</Link>
@@ -101,6 +103,10 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
             </dl>
           )}
         </section>
+      </div>
+
+      <div style={{ marginTop: "1.25rem" }}>
+        <PackSizes product={product} packs={product.packs} canEdit={manage} />
       </div>
 
       <section className="card" style={{ marginTop: "1.25rem" }}>

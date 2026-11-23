@@ -29,7 +29,7 @@ export default async function LocationPage({ params }: { params: Promise<{ id: s
     take: 25,
     include: movementRowInclude,
   });
-  const manage = can.manageCatalog(user.role);
+  const manage = can.manageLocations(user);
   const units = location.stock.reduce((s, x) => s + x.quantity, 0);
   const value = location.stock.reduce((s, x) => s + x.quantity * x.product.costCents, 0);
 

@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { recordMovement } from "../lib/stock";
 import { createSale } from "../lib/sales";
 import { createPurchaseOrder, paySupplier, receivePurchaseOrder } from "../lib/purchasing";
+import { ROLE_PRESETS, serializePermissions } from "../lib/permissions";
 
 const prisma = new PrismaClient();
 const N = (naira: number) => naira * 100; // naira -> kobo
@@ -14,7 +15,10 @@ async function main() {
   const admin = await prisma.user.upsert({
     where: { email },
     update: {},
-    create: { email, name: "Trifold Admin", role: "ADMIN", passwordHash: await bcrypt.hash(password, 10) },
+    create: {
+      email, name: "Trifold Admin", jobTitle: "Managing Director", role: "ADMIN",
+      permissions: serializePermissions(ROLE_PRESETS.ADMIN), passwordHash: await bcrypt.hash(password, 10),
+    },
   });
   console.log(`Admin account: ${email}`);
 
@@ -41,6 +45,11 @@ async function main() {
     });
     products[p.sku] = created.id;
   }
+
+  // Bulk pack sizes: cartons of 1-litre bottles and gallons.
+  await prisma.productPack.create({ data: { productId: products["EO-2050-1L"], name: "Carton", unitsPerPack: 12, priceRetailCents: N(69000), priceWholesaleCents: N(62000) } });
+  await prisma.productPack.create({ data: { productId: products["EO-2050-4L"], name: "Carton", unitsPerPack: 4, priceRetailCents: N(86000), priceWholesaleCents: N(78000) } });
+  await prisma.productPack.create({ data: { productId: products["ATF-1L"], name: "Carton", unitsPerPack: 12, priceRetailCents: N(80000), priceWholesaleCents: N(72000) } });
 
   const supplier = await prisma.supplier.create({ data: { name: "Apex Lubricants Distribution Ltd", contactName: "Mr. Okafor", phone: "0803 000 0001" } });
   await prisma.supplier.create({ data: { name: "Delta Industrial Oils", contactName: "Mrs. Bello", phone: "0805 000 0002" } });

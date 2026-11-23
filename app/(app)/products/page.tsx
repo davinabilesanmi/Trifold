@@ -29,7 +29,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
       <PageHeader
         title="Products"
         subtitle={`${formatNumber(products.length)} shown`}
-        actions={can.manageCatalog(user.role) && <Link href="/products/new" className="btn btn-primary">Add product</Link>}
+        actions={can.manageCatalog(user) && <Link href="/products/new" className="btn btn-primary">Add product</Link>}
       />
       <form className="filters" method="get">
         <input type="search" name="q" placeholder="Search name, SKU or category" defaultValue={q} aria-label="Search" />
@@ -43,7 +43,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
       </form>
 
       {products.length === 0 ? (
-        <p className="empty">No products match. {can.manageCatalog(user.role) && <Link href="/products/new">Add one</Link>}</p>
+        <p className="empty">No products match. {can.manageCatalog(user) && <Link href="/products/new">Add one</Link>}</p>
       ) : (
         <div className="table-wrap">
           <table className="table">

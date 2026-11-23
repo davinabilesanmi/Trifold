@@ -25,6 +25,7 @@ const poSchema = z.object({
     }
   }).pipe(z.array(z.object({
     productId: z.string().min(1, "Choose a product on every line."),
+    packId: z.string().nullish(),
     quantity: z.coerce.number().int("Quantities must be whole numbers.").positive("Quantities must be above zero."),
     cost: z.string(),
   })).min(1, "Add at least one product to the order.")),
@@ -43,7 +44,7 @@ export async function createPurchaseOrderAction(_prev: FormState, formData: Form
   for (const l of parsed.data.lines) {
     const unitCostCents = parseMoneyToCents(l.cost);
     if (unitCostCents === null) return { error: "Each unit cost must be an amount like 6500." };
-    lines.push({ productId: l.productId, quantity: l.quantity, unitCostCents });
+    lines.push({ productId: l.productId, packId: l.packId || null, quantity: l.quantity, unitCostCents });
   }
   let id: string;
   try {

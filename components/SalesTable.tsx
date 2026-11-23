@@ -5,11 +5,12 @@ import { saleBalance } from "@/lib/balances";
 export type SaleRow = {
   id: string;
   number: string;
+  kind: string;
   status: string;
   totalCents: number;
   createdAt: Date;
   customer: { id: string; name: string } | null;
-  location: { code: string };
+  location: { code: string } | null;
   user: { name: string };
   payments: { amountCents: number }[];
 };
@@ -48,7 +49,7 @@ export function SalesTable({ sales, showCustomer = true }: { sales: SaleRow[]; s
               {showCustomer && (
                 <td>{s.customer ? <Link href={`/customers/${s.customer.id}`}>{s.customer.name}</Link> : <span className="muted">Walk-in</span>}</td>
               )}
-              <td>{s.location.code}</td>
+              <td>{s.location ? s.location.code : <span className="muted small">Opening balance</span>}</td>
               <td className="num nowrap">{formatMoney(s.totalCents)}</td>
               <td className="num nowrap">{saleBalance(s) > 0 ? formatMoney(saleBalance(s)) : "—"}</td>
               <td><PaymentStatus sale={s} /></td>

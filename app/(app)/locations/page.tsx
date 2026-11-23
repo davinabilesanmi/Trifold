@@ -18,7 +18,7 @@ export default async function LocationsPage() {
     orderBy: [{ active: "desc" }, { name: "asc" }],
     include: { stock: { where: { quantity: { not: 0 } }, include: { product: { select: { costCents: true } } } } },
   });
-  const manage = can.manageCatalog(user.role);
+  const manage = can.manageLocations(user);
 
   return (
     <>

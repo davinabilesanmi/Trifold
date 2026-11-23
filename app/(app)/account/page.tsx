@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/auth";
 import { changeOwnPassword } from "@/lib/actions/auth";
-import { ROLE_DESCRIPTIONS, ROLE_LABELS } from "@/lib/permissions";
+import { PERMISSIONS, labelForRole } from "@/lib/permissions";
 import { PageHeader } from "@/components/PageHeader";
 import { ActionForm } from "@/components/ActionForm";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -18,7 +18,14 @@ export default async function AccountPage() {
           <dl className="details">
             <dt>Name</dt><dd>{user.name}</dd>
             <dt>Email</dt><dd>{user.email}</dd>
-            <dt>Role</dt><dd>{ROLE_LABELS[user.role]} <div className="muted small">{ROLE_DESCRIPTIONS[user.role]}</div></dd>
+            {user.jobTitle && <><dt>Job title</dt><dd>{user.jobTitle}</dd></>}
+            <dt>Access</dt><dd>{labelForRole(user.role)}</dd>
+            <dt>You can</dt>
+            <dd>
+              <ul className="plain-list">
+                {PERMISSIONS.filter((p) => user.permissions.includes(p.key)).map((p) => <li key={p.key}>{p.label}</li>)}
+              </ul>
+            </dd>
           </dl>
         </section>
         <section className="card">

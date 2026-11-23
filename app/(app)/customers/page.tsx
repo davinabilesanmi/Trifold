@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
+import { can } from "@/lib/permissions";
 import { customerBalances } from "@/lib/balances";
 import { PRICE_LEVEL_LABELS, isPriceLevel } from "@/lib/money";
 import { formatMoney } from "@/lib/format";
@@ -13,7 +14,7 @@ export const metadata = { title: "Customers" };
 type Search = { q?: string; owing?: string; archived?: string };
 
 export default async function CustomersPage({ searchParams }: { searchParams: Promise<Search> }) {
-  await requireUser();
+  const user = await requirePermission((u) => can.sell(u) || can.manageCustomers(u) || can.takePayments(u));
   const { q = "", owing, archived } = await searchParams;
   const term = q.trim();
   const where: Prisma.CustomerWhereInput = {
@@ -32,7 +33,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
       <PageHeader
         title="Customers"
         subtitle={<>{rows.length} shown · {formatMoney(totalOwed)} owed to Trifold</>}
-        actions={<Link href="/customers/new" className="btn btn-primary">Add customer</Link>}
+        actions={can.manageCustomers(user) && <Link href="/customers/new" className="btn btn-primary">Add customer</Link>}
       />
       <form className="filters" method="get">
         <input type="search" name="q" placeholder="Search name, phone or email" defaultValue={q} aria-label="Search" />

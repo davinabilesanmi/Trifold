@@ -11,13 +11,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// Role is one of ADMIN | MANAGER | STAFF (see lib/permissions.ts).
+/// permissions is a comma-separated list of responsibilities (lib/permissions.ts).
+/// role is a display label: ADMIN, MANAGER or STAFF when permissions match that preset, else CUSTOM.
 model User {
   id               String            @id @default(cuid())
   email            String            @unique
   name             String
   passwordHash     String
   role             String            @default("STAFF")
+  jobTitle         String?
+  permissions      String            @default("")
   active           Boolean           @default(true)
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
@@ -76,6 +79,7 @@ model Product {
   stock               StockLevel[]
   movements           Movement[]
   saleLines           SaleLine[]
+  packs               ProductPack[]
   purchaseLines       PurchaseOrderLine[]
 }
 
@@ -149,13 +153,16 @@ model Customer {
 }
 
 /// status is COMPLETED or CANCELLED. Cancelling returns the stock and refunds payments.
+/// kind is SALE, or OPENING_BALANCE for money a customer owed before Trifold started
+/// using the system (no lines, no location, no stock).
 model Sale {
   id           String     @id @default(cuid())
+  kind         String     @default("SALE")
   number       String     @unique
   customerId   String?
   customer     Customer?  @relation(fields: [customerId], references: [id])
-  locationId   String
-  location     Location   @relation(fields: [locationId], references: [id])
+  locationId   String?
+  location     Location?  @relation(fields: [locationId], references: [id])
   priceLevel   String
   status       String     @default("COMPLETED")
   totalCents   Float
@@ -174,12 +181,17 @@ model Sale {
 }
 
 model SaleLine {
-  id             String  @id @default(cuid())
+  id             String       @id @default(cuid())
   saleId         String
-  sale           Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  sale           Sale         @relation(fields: [saleId], references: [id], onDelete: Cascade)
   productId      String
-  product        Product @relation(fields: [productId], references: [id])
+  product        Product      @relation(fields: [productId], references: [id])
   quantity       Int
+  /// Sold as a pack (e.g. a carton) when set; quantity counts packs.
+  packId         String?
+  pack           ProductPack? @relation(fields: [packId], references: [id])
+  packName       String?
+  unitsPerPack   Int          @default(1)
   unitPriceCents Float
   /// Cost at the time of sale, for profit reporting.
   unitCostCents  Float
@@ -220,23 +232,27 @@ model Supplier {
 }
 
 /// status is ORDERED, PARTIAL, RECEIVED or CANCELLED.
+/// kind is ORDER, or OPENING_BALANCE for money Trifold owed a supplier before using the
+/// system: no lines or location, worth openingAmountCents, status RECEIVED.
 /// What Trifold owes is the value of goods received less payments made.
 model PurchaseOrder {
-  id         String              @id @default(cuid())
-  number     String              @unique
-  supplierId String
-  supplier   Supplier            @relation(fields: [supplierId], references: [id])
-  locationId String
-  location   Location            @relation(fields: [locationId], references: [id])
-  status     String              @default("ORDERED")
-  note       String?
-  userId     String
-  user       User                @relation(fields: [userId], references: [id])
-  createdAt  DateTime            @default(now())
-  updatedAt  DateTime            @updatedAt
-  lines      PurchaseOrderLine[]
-  payments   SupplierPayment[]
-  movements  Movement[]
+  id                 String              @id @default(cuid())
+  kind               String              @default("ORDER")
+  openingAmountCents Float?
+  number             String              @unique
+  supplierId         String
+  supplier           Supplier            @relation(fields: [supplierId], references: [id])
+  locationId         String?
+  location           Location?           @relation(fields: [locationId], references: [id])
+  status             String              @default("ORDERED")
+  note               String?
+  userId             String
+  user               User                @relation(fields: [userId], references: [id])
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  lines              PurchaseOrderLine[]
+  payments           SupplierPayment[]
+  movements          Movement[]
 
   @@index([supplierId])
 }
@@ -248,6 +264,11 @@ model PurchaseOrderLine {
   productId        String
   product          Product       @relation(fields: [productId], references: [id])
   quantity         Int
+  /// Ordered as a pack when set; quantity and receivedQuantity count packs.
+  packId           String?
+  pack             ProductPack?  @relation(fields: [packId], references: [id])
+  packName         String?
+  unitsPerPack     Int           @default(1)
   receivedQuantity Int           @default(0)
   unitCostCents    Float
 
@@ -266,4 +287,22 @@ model SupplierPayment {
   paidAt          DateTime      @default(now())
 
   @@index([purchaseOrderId])
+}
+
+/// A way of selling or buying a product in bulk, e.g. "Carton" = 12 bottles.
+/// Stock is always counted in the product's single unit.
+model ProductPack {
+  id                  String              @id @default(cuid())
+  productId           String
+  product             Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name                String
+  unitsPerPack        Int
+  priceRetailCents    Float               @default(0)
+  priceWholesaleCents Float               @default(0)
+  active              Boolean             @default(true)
+  createdAt           DateTime            @default(now())
+  saleLines           SaleLine[]
+  purchaseLines       PurchaseOrderLine[]
+
+  @@unique([productId, name])
 }

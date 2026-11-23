@@ -3,12 +3,13 @@
 import { useMemo, useState } from "react";
 import { centsToInput, formatMoney, parseMoneyToCents } from "@/lib/format";
 
-type Product = { id: string; name: string; sku: string; unit: string; costCents: number };
+type Pack = { id: string; name: string; unitsPerPack: number };
+type Product = { id: string; name: string; sku: string; unit: string; costCents: number; packs: Pack[] };
 type Option = { id: string; name: string };
-type Line = { key: number; productId: string; quantity: string; cost: string };
+type Line = { key: number; productId: string; packId: string; quantity: string; cost: string };
 
 let nextKey = 1;
-const blank = (): Line => ({ key: nextKey++, productId: "", quantity: "1", cost: "" });
+const blank = (): Line => ({ key: nextKey++, productId: "", packId: "", quantity: "1", cost: "" });
 
 export function PurchaseOrderFields({ products, suppliers, locations, defaultSupplierId }: {
   products: Product[]; suppliers: Option[]; locations: (Option & { code: string })[]; defaultSupplierId?: string;
@@ -16,10 +17,10 @@ export function PurchaseOrderFields({ products, suppliers, locations, defaultSup
   const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const [lines, setLines] = useState<Line[]>([blank()]);
   const update = (key: number, patch: Partial<Line>) => setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
-  const used = new Set(lines.map((l) => l.productId));
+  const defaultCost = (p: Product | undefined, units: number) => (p && p.costCents ? centsToInput(p.costCents * units) : "");
   const lineTotal = (l: Line) => (Number.parseInt(l.quantity, 10) || 0) * (parseMoneyToCents(l.cost) ?? 0);
   const total = lines.reduce((s, l) => s + lineTotal(l), 0);
-  const payload = JSON.stringify(lines.filter((l) => l.productId).map(({ productId, quantity, cost }) => ({ productId, quantity, cost })));
+  const payload = JSON.stringify(lines.filter((l) => l.productId).map(({ productId, packId, quantity, cost }) => ({ productId, packId: packId || null, quantity, cost })));
 
   return (
     <>
@@ -42,20 +43,28 @@ export function PurchaseOrderFields({ products, suppliers, locations, defaultSup
       </div>
       <div className="table-wrap">
         <table className="table sale-lines">
-          <thead><tr><th>Product</th><th className="num">Qty</th><th className="num">Unit cost (₦)</th><th className="num">Amount</th><th aria-label="Remove" /></tr></thead>
+          <thead><tr><th>Product</th><th className="num">Qty</th><th className="num">Cost each (₦)</th><th className="num">Amount</th><th aria-label="Remove" /></tr></thead>
           <tbody>
             {lines.map((l, i) => (
               <tr key={l.key}>
                 <td style={{ minWidth: 220 }}>
                   <select aria-label={`Product ${i + 1}`} value={l.productId} onChange={(e) => {
                     const p = byId.get(e.target.value);
-                    update(l.key, { productId: e.target.value, cost: p && p.costCents ? centsToInput(p.costCents) : "" });
+                    update(l.key, { productId: e.target.value, packId: "", cost: defaultCost(p, 1) });
                   }}>
                     <option value="">Choose product…</option>
-                    {products.map((p) => (
-                      <option key={p.id} value={p.id} disabled={used.has(p.id) && p.id !== l.productId}>{p.name} ({p.sku})</option>
-                    ))}
+                    {products.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>)}
                   </select>
+                  {byId.get(l.productId)?.packs.length ? (
+                    <select aria-label={`Pack ${i + 1}`} value={l.packId} style={{ marginTop: 4 }} onChange={(e) => {
+                      const p = byId.get(l.productId)!;
+                      const pack = p.packs.find((x) => x.id === e.target.value);
+                      update(l.key, { packId: e.target.value, cost: defaultCost(p, pack?.unitsPerPack ?? 1) });
+                    }}>
+                      <option value="">Single {byId.get(l.productId)!.unit}</option>
+                      {byId.get(l.productId)!.packs.map((pk) => <option key={pk.id} value={pk.id}>{pk.name} of {pk.unitsPerPack}</option>)}
+                    </select>
+                  ) : null}
                 </td>
                 <td className="num" style={{ width: 90 }}>
                   <input aria-label={`Quantity ${i + 1}`} type="number" min={1} step={1} value={l.quantity} style={{ textAlign: "right" }}

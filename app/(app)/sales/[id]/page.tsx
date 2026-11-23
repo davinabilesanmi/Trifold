@@ -34,13 +34,16 @@ export default async function SalePage({ params, searchParams }: { params: Promi
   const paid = sale.payments.reduce((s, p) => s + p.amountCents, 0);
   const balance = saleBalance(sale);
   const cancelled = sale.status === "CANCELLED";
+  const opening = sale.kind === "OPENING_BALANCE";
 
   return (
     <>
       <div className="page-header no-print">
         <div>
-          <h1>Invoice {sale.number}</h1>
-          <p className="muted"><PaymentStatus sale={sale} /> · sold from {sale.location.name} by {sale.user.name}</p>
+          <h1>{opening ? "Opening balance" : "Invoice"} {sale.number}</h1>
+          <p className="muted">
+            <PaymentStatus sale={sale} /> · {sale.location ? `sold from ${sale.location.name}` : "owed before Trifold started using the system"} · recorded by {sale.user.name}
+          </p>
         </div>
         <div className="page-actions">
           <PrintButton label="Print invoice" />
@@ -62,11 +65,11 @@ export default async function SalePage({ params, searchParams }: { params: Promi
             <div className="muted">{[settings.phone, settings.email].filter(Boolean).join(" · ")}</div>
           </div>
           <div className="invoice-meta">
-            <div className="invoice-title">{cancelled ? "CANCELLED INVOICE" : "INVOICE"}</div>
+            <div className="invoice-title">{cancelled ? "CANCELLED " : ""}{opening ? "STATEMENT" : "INVOICE"}</div>
             <dl className="details">
               <dt>Number</dt><dd>{sale.number}</dd>
               <dt>Date</dt><dd>{formatDateTime(sale.createdAt)}</dd>
-              <dt>Prices</dt><dd>{isPriceLevel(sale.priceLevel) ? PRICE_LEVEL_LABELS[sale.priceLevel] : sale.priceLevel}</dd>
+              {!opening && <><dt>Prices</dt><dd>{isPriceLevel(sale.priceLevel) ? PRICE_LEVEL_LABELS[sale.priceLevel] : sale.priceLevel}</dd></>}
             </dl>
           </div>
         </header>
@@ -86,10 +89,16 @@ export default async function SalePage({ params, searchParams }: { params: Promi
           <table className="table">
             <thead><tr><th>Item</th><th className="num">Qty</th><th className="num">Unit price</th><th className="num">Amount</th></tr></thead>
             <tbody>
+              {opening && (
+                <tr><td>Balance brought forward</td><td className="num">—</td><td className="num">—</td><td className="num nowrap">{formatMoney(sale.totalCents)}</td></tr>
+              )}
               {sale.lines.map((l) => (
                 <tr key={l.id}>
                   <td>{l.product.name} <span className="muted small">{l.product.sku}</span></td>
-                  <td className="num nowrap">{formatNumber(l.quantity)} {l.product.unit}</td>
+                  <td className="num nowrap">
+                    {formatNumber(l.quantity)} {l.packName ? l.packName.toLowerCase() : l.product.unit}
+                    {l.packName && <div className="muted small">= {formatNumber(l.quantity * l.unitsPerPack)} {l.product.unit}</div>}
+                  </td>
                   <td className="num nowrap">{formatMoney(l.unitPriceCents)}</td>
                   <td className="num nowrap">{formatMoney(l.quantity * l.unitPriceCents)}</td>
                 </tr>
@@ -137,7 +146,7 @@ export default async function SalePage({ params, searchParams }: { params: Promi
 
         {!cancelled && (
           <div>
-            {balance > 0 && can.takePayments(user.role) && (
+            {balance > 0 && can.takePayments(user) && (
               <section className="card">
                 <h2>Record a payment</h2>
                 <ActionForm action={recordPaymentAction.bind(null, sale.id)} resetOnSuccess>
@@ -162,16 +171,18 @@ export default async function SalePage({ params, searchParams }: { params: Promi
                 </ActionForm>
               </section>
             )}
-            {can.cancelSales(user.role) && (
+            {can.cancelSales(user) && (
               <section className="card">
-                <h2>Cancel sale</h2>
-                <p className="muted small" style={{ marginTop: 0 }}>Returns the stock to {sale.location.name} and records a refund of {formatMoney(paid)}.</p>
+                <h2>{opening ? "Remove opening balance" : "Cancel sale"}</h2>
+                <p className="muted small" style={{ marginTop: 0 }}>
+                  {sale.location ? `Returns the stock to ${sale.location.name} and records` : "Removes this balance and records"} a refund of {formatMoney(paid)}.
+                </p>
                 <ActionForm action={cancelSaleAction.bind(null, sale.id)}>
                   <div className="field">
                     <label htmlFor="reason">Reason</label>
                     <input id="reason" name="reason" type="text" required maxLength={200} placeholder="e.g. Customer returned goods" />
                   </div>
-                  <div className="form-actions"><SubmitButton variant="danger" pendingText="Cancelling…">Cancel sale</SubmitButton></div>
+                  <div className="form-actions"><SubmitButton variant="danger" pendingText="Cancelling…">{opening ? "Remove balance" : "Cancel sale"}</SubmitButton></div>
                 </ActionForm>
               </section>
             )}

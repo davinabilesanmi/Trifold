@@ -17,12 +17,12 @@ const sum = (m: Map<string, number>) => [...m.values()].reduce((s, v) => s + Mat
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ denied?: string }> }) {
   const user = await requireUser();
   const { denied } = await searchParams;
-  const manager = can.viewReports(user.role);
+  const manager = can.viewReports(user);
   const todayStart = startOfDay(todayInLagos());
 
   const [products, todaySales, recentSales, openOrders, receivable, payable] = await Promise.all([
     productsWithTotals({ active: true }),
-    prisma.sale.aggregate({ where: { status: "COMPLETED", createdAt: { gte: todayStart } }, _sum: { totalCents: true }, _count: true }),
+    prisma.sale.aggregate({ where: { status: "COMPLETED", kind: "SALE", createdAt: { gte: todayStart } }, _sum: { totalCents: true }, _count: true }),
     prisma.sale.findMany({ orderBy: { createdAt: "desc" }, take: 8, include: saleRowInclude }),
     prisma.purchaseOrder.count({ where: { status: { in: ["ORDERED", "PARTIAL"] } } }),
     manager ? customerBalances().then(sum) : Promise.resolve(0),
@@ -38,8 +38,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         title={`Welcome, ${user.name.split(" ")[0]}`}
         subtitle="Today at Trifold."
         actions={<>
-          <Link href="/sales/new" className="btn btn-primary">New sale</Link>
-          <Link href="/movements/new" className="btn btn-secondary">Record movement</Link>
+          {can.sell(user) && <Link href="/sales/new" className="btn btn-primary">New sale</Link>}
+          {can.recordMovements(user) && <Link href="/movements/new" className="btn btn-secondary">Record movement</Link>}
         </>}
       />
       {denied && <p className="alert alert-warn page-alert">You don&apos;t have permission to open that page.</p>}

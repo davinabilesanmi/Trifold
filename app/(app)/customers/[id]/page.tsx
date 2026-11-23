@@ -4,7 +4,8 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { customerBalances } from "@/lib/balances";
-import { setCustomerActive, updateCustomer } from "@/lib/actions/parties";
+import { customerOpeningBalanceAction, setCustomerActive, updateCustomer } from "@/lib/actions/parties";
+import { OpeningBalanceForm } from "@/components/OpeningBalanceForm";
 import { formatMoney } from "@/lib/format";
 import { PageHeader } from "@/components/PageHeader";
 import { ActionForm } from "@/components/ActionForm";
@@ -23,13 +24,14 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
     customerBalances([id]),
   ]);
   const balance = balances.get(id) ?? 0;
+  const hasOpening = sales.some((s) => s.kind === "OPENING_BALANCE" && s.status === "COMPLETED");
 
   return (
     <>
       <PageHeader
         title={customer.name}
         subtitle={<>{customer.type === "WHOLESALE" ? "Wholesale" : "Retail"} customer {!customer.active && <ArchivedBadge />}</>}
-        actions={customer.active && can.sell(user.role) && (
+        actions={customer.active && can.sell(user) && (
           <Link href={`/sales/new?customer=${customer.id}`} className="btn btn-primary">New sale</Link>
         )}
       />
@@ -40,7 +42,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
         </div>
         <div className="stat">
           <div className="stat-label">Total bought</div>
-          <div className="stat-value">{formatMoney(sales.filter((s) => s.status === "COMPLETED").reduce((s, x) => s + x.totalCents, 0))}</div>
+          <div className="stat-value">{formatMoney(sales.filter((s) => s.status === "COMPLETED" && s.kind === "SALE").reduce((s, x) => s + x.totalCents, 0))}</div>
         </div>
       </section>
       <div className="grid-2">
@@ -49,7 +51,11 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
           {balance > 0 && <p className="muted small">Open an unpaid invoice to record a payment against it.</p>}
           <SalesTable sales={sales} showCustomer={false} />
         </section>
-        <section className="card">
+        <div>
+        {customer.active && !hasOpening && can.openingBalances(user) && (
+          <OpeningBalanceForm who="customer" action={customerOpeningBalanceAction.bind(null, customer.id)} />
+        )}
+        {can.manageCustomers(user) && <section className="card">
           <h2>Details</h2>
           <ActionForm action={updateCustomer.bind(null, customer.id)}>
             <CustomerFields customer={customer} />
@@ -60,7 +66,8 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
               {customer.active ? "Archive customer" : "Restore customer"}
             </button>
           </form>
-        </section>
+        </section>}
+        </div>
       </div>
     </>
   );

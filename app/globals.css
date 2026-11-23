@@ -221,3 +221,19 @@ input[type="date"] { font: inherit; color: var(--text); background: var(--surfac
 }
 .stat-link { color: inherit; display: block; }
 .stat-link:hover { text-decoration: none; border-color: var(--brand); }
+
+/* Responsibilities picker */
+.perm-picker { border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; margin: 0; display: flex; flex-direction: column; gap: 1rem; }
+.perm-picker legend { padding: 0 0.35rem; }
+.perm-presets { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.perm-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 1rem 1.5rem; }
+.perm-group { display: flex; flex-direction: column; gap: 0.4rem; }
+.perm-group .checkbox { align-items: flex-start; font-size: 0.92rem; }
+.perm-group .checkbox input { margin-top: 0.25rem; }
+.plain-list { margin: 0; padding-left: 1.1rem; }
+
+/* Pack sizes */
+.pack-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr)); gap: 0.75rem; }
+.pack-edit { border: 1px solid var(--border); border-radius: var(--radius); padding: 0.9rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.pack-edit .form { gap: 0.75rem; }
+.pack-new { border-style: dashed; }

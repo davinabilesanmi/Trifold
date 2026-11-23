@@ -11,17 +11,12 @@ control who can do what.
 - **Customers**: marked retail or wholesale, which sets the prices they pay. Each customer shows their invoices and balance.
 - **Suppliers and purchase orders**: order stock (PO-000001) and receive deliveries in full or in parts. Receiving adds stock and updates the product's cost. Pay suppliers in advance or after delivery and track what Trifold owes.
 - **Products**: SKU, category, unit, cost, and retail and wholesale prices, plus a reorder level that flags *Low* or *Out* across all locations.
-- **Locations** and **stock movements**: receive, issue, transfer and adjust (to a physical count), each logged with who, when and why. Stock can never go negative, even under simultaneous sales.
+- **Locations** (set up only by people with that responsibility, e.g. the MD) and **stock movements**: receive, issue, transfer and adjust (to a physical count), each logged with who, when and why. Stock can never go negative, even under simultaneous sales.
 - **Reports**: revenue, cost of goods sold and gross profit for any date range; sales by product; money received by payment method; stock value; customers who owe and suppliers owed. Every report downloads as a CSV file that opens in Excel.
 - **Dashboard**: today's sales, money owed both ways, stock value, reorder alerts and expected deliveries.
-- **Roles**:
-
-  | Role    | Sell, take payments, receive deliveries, move stock | Change prices on a sale, cancel sales | Products, locations, suppliers, purchase orders | Reports | Users and settings |
-  |---------|:---:|:---:|:---:|:---:|:---:|
-  | Staff   | ✓ |   |   |   |   |
-  | Manager | ✓ | ✓ | ✓ | ✓ |   |
-  | Admin   | ✓ | ✓ | ✓ | ✓ | ✓ |
-
+- **Staff responsibilities**: the admin ticks exactly what each person may do (make sales, take payments, change prices, cancel sales, move stock, set prices and pack sizes, set up locations, receive deliveries, manage buying, enter opening balances, see reports, manage staff, change settings). **Admin**, **Manager** and **Staff** are presets to start from; any other mix shows as *Custom*. Menus only show what each person can use, and an admin can't remove their own access to staff accounts.
+- **Pack sizes**: on any product, add packs such as *Carton = 12 bottles* or *Drum = 200 litres*, each with its own retail and wholesale price. Sales and purchase orders can use single units or packs. Stock is always counted in single units.
+- **Opening balances**: record what a customer owed, or what Trifold owed a supplier, before using the system. It appears as a statement (OB-000001) that normal payments clear, and is kept out of sales revenue.
 - Products, locations, customers and suppliers are **archived** rather than deleted, so history is kept.
 - Amounts are in **naira**. Money is stored as whole kobo, so totals never suffer rounding errors.
 

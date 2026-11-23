@@ -15,7 +15,7 @@ const PAGE_SIZE = 50;
 type Search = { q?: string; status?: string; from?: string; to?: string; page?: string };
 
 export default async function SalesPage({ searchParams }: { searchParams: Promise<Search> }) {
-  await requirePermission(can.sell);
+  await requirePermission((u) => can.sell(u) || can.takePayments(u));
   const sp = await searchParams;
   const page = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1);
   const { from, to, createdAt } = parseDateRange(sp.from, sp.to);
@@ -30,7 +30,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
   if (sp.status === "unpaid") sales = sales.filter((s) => saleBalance(s) > 0);
 
   const completed = sales.filter((s) => s.status === "COMPLETED");
-  const total = completed.reduce((s, x) => s + x.totalCents, 0);
+  const total = completed.filter((s) => s.kind === "SALE").reduce((s, x) => s + x.totalCents, 0);
   const outstanding = completed.reduce((s, x) => s + Math.max(0, saleBalance(x)), 0);
   const pages = Math.max(1, Math.ceil(sales.length / PAGE_SIZE));
   const shown = sales.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -43,7 +43,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <PageHeader title="Sales" subtitle={`${completed.length} sales · ${formatMoney(total)} · ${formatMoney(outstanding)} unpaid`}
+      <PageHeader title="Sales" subtitle={`${completed.filter((s) => s.kind === "SALE").length} sales · ${formatMoney(total)} · ${formatMoney(outstanding)} unpaid`}
         actions={<Link href="/sales/new" className="btn btn-primary">New sale</Link>} />
       <form className="filters" method="get">
         <input type="search" name="q" placeholder="Invoice number or customer" defaultValue={sp.q} aria-label="Search" />

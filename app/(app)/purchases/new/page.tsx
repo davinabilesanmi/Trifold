@@ -14,7 +14,10 @@ export default async function NewPurchaseOrderPage({ searchParams }: { searchPar
   await requirePermission(can.managePurchasing);
   const { supplier } = await searchParams;
   const [products, suppliers, locations] = await Promise.all([
-    prisma.product.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true, sku: true, unit: true, costCents: true } }),
+    prisma.product.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: {
+      id: true, name: true, sku: true, unit: true, costCents: true,
+      packs: { where: { active: true }, orderBy: { unitsPerPack: "asc" }, select: { id: true, name: true, unitsPerPack: true } },
+    } }),
     prisma.supplier.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     prisma.location.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true, code: true } }),
   ]);

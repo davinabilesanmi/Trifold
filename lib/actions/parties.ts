@@ -7,6 +7,10 @@ import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { firstIssue, formToObject, type FormState } from "@/lib/forms";
+import { parseMoneyToCents } from "@/lib/format";
+import { createCustomerOpeningBalance } from "@/lib/sales";
+import { createSupplierOpeningBalance } from "@/lib/purchasing";
+import { StockError } from "@/lib/stock";
 
 const optional = (max: number) => z.string().trim().max(max).optional().transform((v) => v || null);
 
@@ -80,4 +84,39 @@ export async function setSupplierActive(id: string, active: boolean) {
   await prisma.supplier.update({ where: { id }, data: { active } });
   revalidatePath("/suppliers");
   revalidatePath(`/suppliers/${id}`);
+}
+
+async function openingBalance(
+  formData: FormData,
+  create: (amountCents: number, note: string | null) => Promise<{ id: string }>,
+): Promise<FormState | { id: string }> {
+  const amountCents = parseMoneyToCents(String(formData.get("amount") ?? ""));
+  if (!amountCents) return { error: "Enter the amount owed, e.g. 250000." };
+  const note = String(formData.get("note") ?? "").trim().slice(0, 300) || null;
+  try {
+    return await create(amountCents, note);
+  } catch (e) {
+    if (e instanceof StockError) return { error: e.message };
+    throw e;
+  }
+}
+
+export async function customerOpeningBalanceAction(customerId: string, _prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await requirePermission(can.openingBalances);
+  const existing = await prisma.sale.count({ where: { customerId, kind: "OPENING_BALANCE", status: "COMPLETED" } });
+  if (existing > 0) return { error: "This customer already has an opening balance. Remove it first to enter a different amount." };
+  const result = await openingBalance(formData, (amount, note) => createCustomerOpeningBalance(prisma, customerId, amount, note, user.id));
+  if (result && "error" in result) return result;
+  revalidatePath("/", "layout");
+  redirect(`/sales/${(result as { id: string }).id}`);
+}
+
+export async function supplierOpeningBalanceAction(supplierId: string, _prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await requirePermission(can.openingBalances);
+  const existing = await prisma.purchaseOrder.count({ where: { supplierId, kind: "OPENING_BALANCE", status: { not: "CANCELLED" } } });
+  if (existing > 0) return { error: "This supplier already has an opening balance." };
+  const result = await openingBalance(formData, (amount, note) => createSupplierOpeningBalance(prisma, supplierId, amount, note, user.id));
+  if (result && "error" in result) return result;
+  revalidatePath("/", "layout");
+  redirect(`/purchases/${(result as { id: string }).id}`);
 }

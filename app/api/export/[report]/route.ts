@@ -26,8 +26,8 @@ async function build(report: string, from?: string, to?: string): Promise<string
         include: { customer: true, location: true, user: true, payments: true },
       });
       return toCsv(
-        ["Invoice", "Date", "Status", "Customer", "Price list", "Location", "Total (NGN)", "Paid (NGN)", "Balance (NGN)", "Sold by"],
-        sales.map((s) => [s.number, lagos(s.createdAt), s.status, s.customer?.name ?? "Walk-in", s.priceLevel, s.location.code,
+        ["Invoice", "Type", "Date", "Status", "Customer", "Price list", "Location", "Total (NGN)", "Paid (NGN)", "Balance (NGN)", "Sold by"],
+        sales.map((s) => [s.number, s.kind === "OPENING_BALANCE" ? "Opening balance" : "Sale", lagos(s.createdAt), s.status, s.customer?.name ?? "Walk-in", s.priceLevel, s.location?.code ?? "Opening balance",
           naira(s.totalCents), naira(s.payments.reduce((t, p) => t + p.amountCents, 0)), naira(saleBalance(s)), s.user.name]),
       );
     }
@@ -74,7 +74,7 @@ async function build(report: string, from?: string, to?: string): Promise<string
 export async function GET(request: Request, { params }: { params: Promise<{ report: string }> }) {
   const user = await getCurrentUser();
   if (!user) return new Response("Sign in required", { status: 401 });
-  if (!can.viewReports(user.role)) return new Response("Not allowed", { status: 403 });
+  if (!can.viewReports(user)) return new Response("Not allowed", { status: 403 });
   const { report } = await params;
   const url = new URL(request.url);
   const from = url.searchParams.get("from") ?? undefined;

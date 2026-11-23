@@ -21,6 +21,6 @@ export function isPriceLevel(v: unknown): v is PriceLevel {
   return v === "RETAIL" || v === "WHOLESALE";
 }
 
-export function priceFor(product: { priceRetailCents: number; priceWholesaleCents: number }, level: PriceLevel) {
-  return level === "WHOLESALE" ? product.priceWholesaleCents : product.priceRetailCents;
+export function priceFor(item: { priceRetailCents: number; priceWholesaleCents: number }, level: PriceLevel) {
+  return level === "WHOLESALE" ? item.priceWholesaleCents : item.priceRetailCents;
 }

@@ -28,44 +28,51 @@ export default async function PurchaseOrderPage({ params }: { params: Promise<{ 
   const paid = po.payments.reduce((s, p) => s + p.amountCents, 0);
   const balance = value - paid;
   const open = po.status === "ORDERED" || po.status === "PARTIAL";
-  const manage = can.managePurchasing(user.role);
+  const manage = can.managePurchasing(user);
+  const opening = po.kind === "OPENING_BALANCE";
 
   return (
     <>
       <div className="page-header">
         <div>
-          <h1>Purchase order {po.number}</h1>
-          <p className="muted"><PoStatusBadge status={po.status} /> · <Link href={`/suppliers/${po.supplier.id}`}>{po.supplier.name}</Link> · deliver to {po.location.name} · created {formatDateTime(po.createdAt)} by {po.user.name}</p>
+          <h1>{opening ? "Opening balance" : "Purchase order"} {po.number}</h1>
+          <p className="muted">
+            <PoStatusBadge status={po.status} kind={po.kind} /> · <Link href={`/suppliers/${po.supplier.id}`}>{po.supplier.name}</Link>
+            {po.location ? ` · deliver to ${po.location.name}` : " · owed before Trifold started using the system"} · created {formatDateTime(po.createdAt)} by {po.user.name}
+          </p>
         </div>
         <div className="page-actions no-print"><PrintButton /></div>
       </div>
 
       <section className="stats">
-        <div className="stat"><div className="stat-label">{po.status === "RECEIVED" ? "Value received" : "Order value"}</div><div className="stat-value">{formatMoney(value)}</div></div>
+        <div className="stat"><div className="stat-label">{opening ? "Amount owed at start" : po.status === "RECEIVED" ? "Value received" : "Order value"}</div><div className="stat-value">{formatMoney(value)}</div></div>
         <div className="stat"><div className="stat-label">Paid to supplier</div><div className="stat-value">{formatMoney(paid)}</div></div>
         <div className={balance > 0 ? "stat stat-warn" : "stat"}><div className="stat-label">{balance < 0 ? "Supplier owes Trifold" : "Still to pay"}</div><div className="stat-value">{formatMoney(Math.abs(balance))}</div></div>
       </section>
 
-      <section className="card">
+      {!opening && <section className="card">
         <h2>Items</h2>
         <ActionForm action={receivePurchaseOrderAction.bind(null, po.id)}>
           <div className="table-wrap">
             <table className="table">
               <thead>
                 <tr><th>Product</th><th className="num">Ordered</th><th className="num">Received</th><th className="num">Unit cost</th><th className="num">Amount</th>
-                  {open && can.receivePurchases(user.role) && <th className="num no-print">Receive now</th>}</tr>
+                  {open && can.receivePurchases(user) && <th className="num no-print">Receive now</th>}</tr>
               </thead>
               <tbody>
                 {po.lines.map((l) => {
                   const remaining = l.quantity - l.receivedQuantity;
                   return (
                     <tr key={l.id}>
-                      <td><Link href={`/products/${l.product.id}`}>{l.product.name}</Link> <span className="muted small">{l.product.sku}</span></td>
-                      <td className="num nowrap">{formatNumber(l.quantity)} {l.product.unit}</td>
+                      <td>
+                        <Link href={`/products/${l.product.id}`}>{l.product.name}</Link> <span className="muted small">{l.product.sku}</span>
+                        {l.packName && <div className="muted small">{l.packName} of {l.unitsPerPack} {l.product.unit}</div>}
+                      </td>
+                      <td className="num nowrap">{formatNumber(l.quantity)} {l.packName ? l.packName.toLowerCase() : l.product.unit}</td>
                       <td className="num nowrap">{formatNumber(l.receivedQuantity)}</td>
                       <td className="num nowrap">{formatMoney(l.unitCostCents)}</td>
                       <td className="num nowrap">{formatMoney(l.quantity * l.unitCostCents)}</td>
-                      {open && can.receivePurchases(user.role) && (
+                      {open && can.receivePurchases(user) && (
                         <td className="num no-print" style={{ width: 120 }}>
                           {remaining > 0 ? (
                             <input type="number" name={`receive:${l.id}`} min={0} max={remaining} step={1} defaultValue={remaining}
@@ -79,15 +86,16 @@ export default async function PurchaseOrderPage({ params }: { params: Promise<{ 
               </tbody>
             </table>
           </div>
-          {open && can.receivePurchases(user.role) && (
+          {open && can.receivePurchases(user) && (
             <div className="form-actions no-print">
-              <SubmitButton pendingText="Receiving…">Receive delivery into {po.location.name}</SubmitButton>
+              <SubmitButton pendingText="Receiving…">Receive delivery into {po.location?.name}</SubmitButton>
               <span className="muted small">Adjust the quantities to what actually arrived.</span>
             </div>
           )}
         </ActionForm>
         {po.note && <p><span className="muted small">Note:</span> {po.note}</p>}
-      </section>
+      </section>}
+      {opening && po.note && <p><span className="muted small">Note:</span> {po.note}</p>}
 
       <div className="grid-2 no-print" style={{ marginTop: "1.25rem" }}>
         <section className="card">

@@ -85,3 +85,55 @@ export async function setProductActive(id: string, active: boolean) {
   revalidatePath("/products");
   revalidatePath(`/products/${id}`);
 }
+
+const packSchema = z.object({
+  name: z.string().trim().min(1, "Give the pack a name, e.g. Carton.").max(40),
+  unitsPerPack: z.coerce.number({ message: "Units per pack must be a number." })
+    .int("Units per pack must be a whole number.").min(2, "A pack must hold at least 2 units."),
+  priceRetail: z.string().optional().default(""),
+  priceWholesale: z.string().optional().default(""),
+});
+
+function packData(formData: FormData) {
+  const parsed = packSchema.safeParse(formToObject(formData));
+  if (!parsed.success) return { error: firstIssue(parsed.error) } as const;
+  const priceRetailCents = parseMoneyToCents(parsed.data.priceRetail);
+  const priceWholesaleCents = parseMoneyToCents(parsed.data.priceWholesale);
+  if (priceRetailCents === null || priceWholesaleCents === null) return { error: "Prices must be amounts like 66000 or 66,000.00." } as const;
+  return { data: { name: parsed.data.name, unitsPerPack: parsed.data.unitsPerPack, priceRetailCents, priceWholesaleCents } } as const;
+}
+
+export async function createPack(productId: string, _prev: FormState, formData: FormData): Promise<FormState> {
+  await requirePermission(can.manageCatalog);
+  const result = packData(formData);
+  if ("error" in result) return { error: result.error };
+  try {
+    await prisma.productPack.create({ data: { ...result.data, productId } });
+  } catch (e) {
+    if (isUniqueViolation(e)) return { error: `This product already has a pack called ${result.data.name}.` };
+    throw e;
+  }
+  revalidatePath(`/products/${productId}`);
+  return { success: `${result.data.name} added.` };
+}
+
+export async function updatePack(packId: string, _prev: FormState, formData: FormData): Promise<FormState> {
+  await requirePermission(can.manageCatalog);
+  const result = packData(formData);
+  if ("error" in result) return { error: result.error };
+  let productId: string;
+  try {
+    ({ productId } = await prisma.productPack.update({ where: { id: packId }, data: result.data }));
+  } catch (e) {
+    if (isUniqueViolation(e)) return { error: `This product already has a pack called ${result.data.name}.` };
+    throw e;
+  }
+  revalidatePath(`/products/${productId}`);
+  return { success: "Saved." };
+}
+
+export async function setPackActive(packId: string, active: boolean) {
+  await requirePermission(can.manageCatalog);
+  const { productId } = await prisma.productPack.update({ where: { id: packId }, data: { active } });
+  revalidatePath(`/products/${productId}`);
+}

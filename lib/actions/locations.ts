@@ -21,7 +21,7 @@ const locationSchema = z.object({
 });
 
 export async function createLocation(_prev: FormState, formData: FormData): Promise<FormState> {
-  await requirePermission(can.manageCatalog);
+  await requirePermission(can.manageLocations);
   const parsed = locationSchema.safeParse(formToObject(formData));
   if (!parsed.success) return { error: firstIssue(parsed.error) };
   let id: string;
@@ -38,7 +38,7 @@ export async function createLocation(_prev: FormState, formData: FormData): Prom
 }
 
 export async function updateLocation(id: string, _prev: FormState, formData: FormData): Promise<FormState> {
-  await requirePermission(can.manageCatalog);
+  await requirePermission(can.manageLocations);
   const parsed = locationSchema.safeParse(formToObject(formData));
   if (!parsed.success) return { error: firstIssue(parsed.error) };
   try {
@@ -56,7 +56,7 @@ export async function updateLocation(id: string, _prev: FormState, formData: For
 }
 
 export async function setLocationActive(id: string, active: boolean) {
-  await requirePermission(can.manageCatalog);
+  await requirePermission(can.manageLocations);
   await prisma.location.update({ where: { id }, data: { active } });
   revalidatePath("/locations");
   revalidatePath(`/locations/${id}`);

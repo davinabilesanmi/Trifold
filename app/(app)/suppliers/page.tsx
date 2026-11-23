@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { supplierBalances } from "@/lib/balances";
 import { formatMoney } from "@/lib/format";
@@ -10,7 +10,7 @@ import { ArchivedBadge } from "@/components/Badges";
 export const metadata = { title: "Suppliers" };
 
 export default async function SuppliersPage({ searchParams }: { searchParams: Promise<{ archived?: string }> }) {
-  const user = await requireUser();
+  const user = await requirePermission((u) => can.managePurchasing(u) || can.openingBalances(u));
   const { archived } = await searchParams;
   const suppliers = await prisma.supplier.findMany({ where: archived ? {} : { active: true }, orderBy: [{ active: "desc" }, { name: "asc" }] });
   const balances = await supplierBalances(suppliers.map((s) => s.id));
@@ -18,7 +18,7 @@ export default async function SuppliersPage({ searchParams }: { searchParams: Pr
   return (
     <>
       <PageHeader title="Suppliers" subtitle={<>{suppliers.length} suppliers · Trifold owes {formatMoney(owed)}</>}
-        actions={can.managePurchasing(user.role) && <Link href="/suppliers/new" className="btn btn-primary">Add supplier</Link>} />
+        actions={can.managePurchasing(user) && <Link href="/suppliers/new" className="btn btn-primary">Add supplier</Link>} />
       <form className="filters" method="get">
         <label className="checkbox small"><input type="checkbox" name="archived" value="1" defaultChecked={!!archived} /> Include archived</label>
         <button className="btn btn-secondary" type="submit">Filter</button>

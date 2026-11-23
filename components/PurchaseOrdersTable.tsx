@@ -3,8 +3,8 @@ import { formatDateTime, formatMoney } from "@/lib/format";
 import { PO_STATUS_LABELS, purchaseOrderValue } from "@/lib/purchasing";
 
 export type PurchaseOrderRow = {
-  id: string; number: string; status: string; createdAt: Date;
-  supplier: { id: string; name: string }; location: { code: string };
+  id: string; number: string; status: string; createdAt: Date; kind: string; openingAmountCents: number | null;
+  supplier: { id: string; name: string }; location: { code: string } | null;
   lines: { quantity: number; receivedQuantity: number; unitCostCents: number }[];
   payments: { amountCents: number }[];
 };
@@ -18,7 +18,8 @@ export const purchaseOrderRowInclude = {
 
 const STATUS_BADGE: Record<string, string> = { ORDERED: "badge-move-transfer", PARTIAL: "badge-low", RECEIVED: "badge-ok", CANCELLED: "badge-archived" };
 
-export function PoStatusBadge({ status }: { status: string }) {
+export function PoStatusBadge({ status, kind }: { status: string; kind?: string }) {
+  if (kind === "OPENING_BALANCE") return <span className="badge">Opening balance</span>;
   return <span className={`badge ${STATUS_BADGE[status] ?? ""}`}>{PO_STATUS_LABELS[status] ?? status}</span>;
 }
 
@@ -42,10 +43,10 @@ export function PurchaseOrdersTable({ orders, showSupplier = true }: { orders: P
                 <td className="nowrap"><Link href={`/purchases/${po.id}`}>{po.number}</Link></td>
                 <td className="nowrap">{formatDateTime(po.createdAt)}</td>
                 {showSupplier && <td><Link href={`/suppliers/${po.supplier.id}`}>{po.supplier.name}</Link></td>}
-                <td>{po.location.code}</td>
+                <td>{po.location ? po.location.code : <span className="muted small">Opening balance</span>}</td>
                 <td className="num nowrap">{formatMoney(purchaseOrderValue(po, po.lines))}</td>
                 <td className="num nowrap">{balance > 0 ? formatMoney(balance) : "—"}</td>
-                <td><PoStatusBadge status={po.status} /></td>
+                <td><PoStatusBadge status={po.status} kind={po.kind} /></td>
               </tr>
             );
           })}

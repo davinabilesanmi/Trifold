@@ -14,6 +14,7 @@ import { StockError } from "@/lib/stock";
 
 const lineSchema = z.object({
   productId: z.string().min(1, "Choose a product on every line."),
+  packId: z.string().nullish(),
   quantity: z.coerce.number().int("Quantities must be whole numbers.").positive("Quantities must be above zero."),
   price: z.string().optional(),
 });
@@ -48,7 +49,7 @@ export async function createSaleAction(_prev: FormState, formData: FormData): Pr
   for (const l of d.lines) {
     const price = l.price ? parseMoneyToCents(l.price) : null;
     if (l.price && price === null) return { error: "Each price must be an amount like 15000." };
-    lines.push({ productId: l.productId, quantity: l.quantity, unitPriceCents: price });
+    lines.push({ productId: l.productId, packId: l.packId || null, quantity: l.quantity, unitPriceCents: price });
   }
 
   let saleId: string;
@@ -60,7 +61,7 @@ export async function createSaleAction(_prev: FormState, formData: FormData): Pr
       lines,
       note: d.note,
       payment: { amountCents: amountPaid, method: d.method, reference: d.reference },
-      allowPriceOverride: can.overridePrices(user.role),
+      allowPriceOverride: can.overridePrices(user),
     }, user.id);
     saleId = sale.id;
   } catch (e) {

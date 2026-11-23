@@ -4,7 +4,8 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { supplierBalances } from "@/lib/balances";
-import { setSupplierActive, updateSupplier } from "@/lib/actions/parties";
+import { setSupplierActive, supplierOpeningBalanceAction, updateSupplier } from "@/lib/actions/parties";
+import { OpeningBalanceForm } from "@/components/OpeningBalanceForm";
 import { formatMoney } from "@/lib/format";
 import { PageHeader } from "@/components/PageHeader";
 import { ActionForm } from "@/components/ActionForm";
@@ -23,7 +24,8 @@ export default async function SupplierPage({ params }: { params: Promise<{ id: s
     supplierBalances([id]),
   ]);
   const balance = balances.get(id) ?? 0;
-  const manage = can.managePurchasing(user.role);
+  const manage = can.managePurchasing(user);
+  const showOpening = supplier.active && can.openingBalances(user) && !orders.some((o) => o.kind === "OPENING_BALANCE" && o.status !== "CANCELLED");
 
   return (
     <>
@@ -35,11 +37,13 @@ export default async function SupplierPage({ params }: { params: Promise<{ id: s
           <div className="stat-value">{formatMoney(Math.abs(balance))}</div>
         </div>
       </section>
-      <div className={manage ? "grid-2" : undefined}>
+      <div className={manage || showOpening ? "grid-2" : undefined}>
         <section className="card">
           <h2>Purchase orders</h2>
           <PurchaseOrdersTable orders={orders} showSupplier={false} />
         </section>
+        <div>
+        {showOpening && <OpeningBalanceForm who="supplier" action={supplierOpeningBalanceAction.bind(null, supplier.id)} />}
         {manage && (
           <section className="card">
             <h2>Details</h2>
@@ -54,6 +58,7 @@ export default async function SupplierPage({ params }: { params: Promise<{ id: s
             </form>
           </section>
         )}
+        </div>
       </div>
     </>
   );

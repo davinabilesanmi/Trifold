@@ -5,12 +5,12 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { prisma } from "./db";
-import { isRole, type Role } from "./permissions";
+import { parsePermissions, type Permission, type PermissionHolder } from "./permissions";
 
 const COOKIE_NAME = "trifold_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 
-export type CurrentUser = { id: string; name: string; email: string; role: Role };
+export type CurrentUser = { id: string; name: string; email: string; role: string; jobTitle: string | null; permissions: Permission[] };
 
 function hashToken(token: string) {
   return crypto.createHash("sha256").update(token).digest("hex");
@@ -54,8 +54,8 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     include: { user: true },
   });
   if (!session || session.expiresAt < new Date() || !session.user.active) return null;
-  const { id, name, email, role } = session.user;
-  return { id, name, email, role: isRole(role) ? role : "STAFF" };
+  const { id, name, email, role, jobTitle, permissions } = session.user;
+  return { id, name, email, role, jobTitle, permissions: parsePermissions(permissions) };
 });
 
 /** Redirects to the login page if nobody is signed in. */
@@ -66,8 +66,8 @@ export async function requireUser() {
 }
 
 /** Redirects home if the signed-in user fails the permission check. */
-export async function requirePermission(check: (role: Role) => boolean) {
+export async function requirePermission(check: (user: PermissionHolder) => boolean) {
   const user = await requireUser();
-  if (!check(user.role)) redirect("/?denied=1");
+  if (!check(user)) redirect("/?denied=1");
   return user;
 }

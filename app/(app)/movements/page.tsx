@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import { can } from "@/lib/permissions";
 import { MOVEMENT_LABELS, MOVEMENT_TYPES, isMovementType } from "@/lib/stock";
 import { PageHeader } from "@/components/PageHeader";
 import { MovementTable, movementRowInclude } from "@/components/MovementTable";
@@ -12,7 +13,7 @@ const PAGE_SIZE = 50;
 type Search = { type?: string; product?: string; location?: string; page?: string; recorded?: string };
 
 export default async function MovementsPage({ searchParams }: { searchParams: Promise<Search> }) {
-  await requireUser();
+  const user = await requireUser();
   const sp = await searchParams;
   const page = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1);
 
@@ -43,7 +44,7 @@ export default async function MovementsPage({ searchParams }: { searchParams: Pr
       <PageHeader
         title="Stock movements"
         subtitle={`${total} recorded`}
-        actions={<Link href="/movements/new" className="btn btn-primary">Record movement</Link>}
+        actions={can.recordMovements(user) && <Link href="/movements/new" className="btn btn-primary">Record movement</Link>}
       />
       {sp.recorded && <p className="alert alert-success page-alert" role="status">Movement recorded.</p>}
 

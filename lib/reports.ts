@@ -13,7 +13,7 @@ export async function salesSummary(createdAt: Range) {
   const byProduct = new Map<string, { product: (typeof lines)[number]["product"]; quantity: number; revenue: number; cost: number }>();
   for (const l of lines) {
     const row = byProduct.get(l.productId) ?? { product: l.product, quantity: 0, revenue: 0, cost: 0 };
-    row.quantity += l.quantity;
+    row.quantity += l.quantity * l.unitsPerPack;
     row.revenue += l.quantity * l.unitPriceCents;
     row.cost += l.quantity * l.unitCostCents;
     byProduct.set(l.productId, row);
@@ -23,7 +23,7 @@ export async function salesSummary(createdAt: Range) {
   const cost = products.reduce((s, p) => s + p.cost, 0);
 
   const [saleCount, payments] = await Promise.all([
-    prisma.sale.count({ where: { status: "COMPLETED", ...(createdAt ? { createdAt } : {}) } }),
+    prisma.sale.count({ where: { status: "COMPLETED", kind: "SALE", ...(createdAt ? { createdAt } : {}) } }),
     prisma.payment.groupBy({ by: ["method"], where: createdAt ? { paidAt: createdAt } : {}, _sum: { amountCents: true } }),
   ]);
   return {

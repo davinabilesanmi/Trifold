@@ -4,10 +4,11 @@ import { useMemo, useState } from "react";
 import { formatMoney, parseMoneyToCents, centsToInput } from "@/lib/format";
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, type PriceLevel } from "@/lib/money";
 
-type Product = { id: string; name: string; sku: string; unit: string; priceRetailCents: number; priceWholesaleCents: number };
+type Pack = { id: string; name: string; unitsPerPack: number; priceRetailCents: number; priceWholesaleCents: number };
+type Product = { id: string; name: string; sku: string; unit: string; priceRetailCents: number; priceWholesaleCents: number; packs: Pack[] };
 type Customer = { id: string; name: string; type: string };
 type Location = { id: string; name: string; code: string };
-type Line = { key: number; productId: string; quantity: string; price: string };
+type Line = { key: number; productId: string; packId: string; quantity: string; price: string };
 
 type Props = {
   products: Product[];
@@ -21,7 +22,7 @@ type Props = {
 };
 
 let nextKey = 1;
-const blankLine = (): Line => ({ key: nextKey++, productId: "", quantity: "1", price: "" });
+const blankLine = (): Line => ({ key: nextKey++, productId: "", packId: "", quantity: "1", price: "" });
 
 export function SaleFields({ products, customers, locations, stock, canOverridePrices, defaultCustomerId, defaultLocationId }: Props) {
   const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
@@ -34,20 +35,29 @@ export function SaleFields({ products, customers, locations, stock, canOverrideP
   const [paid, setPaid] = useState<string | null>(null); // null = follow the total
   const [method, setMethod] = useState<string>("CASH");
 
-  const listPrice = (p: Product | undefined, lvl = level) => (p ? (lvl === "WHOLESALE" ? p.priceWholesaleCents : p.priceRetailCents) : 0);
+  const listPrice = (item: { priceRetailCents: number; priceWholesaleCents: number } | undefined) =>
+    item ? (level === "WHOLESALE" ? item.priceWholesaleCents : item.priceRetailCents) : 0;
+  const packOf = (l: Line) => byId.get(l.productId)?.packs.find((p) => p.id === l.packId);
+  const itemOf = (l: Line) => packOf(l) ?? byId.get(l.productId);
   const priceOf = (l: Line) => {
     if (canOverridePrices && l.price !== "") return parseMoneyToCents(l.price) ?? 0;
-    return listPrice(byId.get(l.productId));
+    return listPrice(itemOf(l));
   };
+  /** Single units of each product already asked for across all lines. */
+  const unitsWanted = new Map<string, number>();
+  for (const l of lines) {
+    if (!l.productId) continue;
+    const units = (Number.parseInt(l.quantity, 10) || 0) * (packOf(l)?.unitsPerPack ?? 1);
+    unitsWanted.set(l.productId, (unitsWanted.get(l.productId) ?? 0) + units);
+  }
   const total = lines.reduce((s, l) => s + (Number.parseInt(l.quantity, 10) || 0) * priceOf(l), 0);
   const paidCents = paid === null ? total : parseMoneyToCents(paid) ?? 0;
   const balance = total - paidCents;
 
   const update = (key: number, patch: Partial<Line>) => setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
-  const used = new Set(lines.map((l) => l.productId));
 
   const payload = JSON.stringify(
-    lines.filter((l) => l.productId).map((l) => ({ productId: l.productId, quantity: l.quantity, ...(canOverridePrices && l.price !== "" ? { price: l.price } : {}) })),
+    lines.filter((l) => l.productId).map((l) => ({ productId: l.productId, packId: l.packId || null, quantity: l.quantity, ...(canOverridePrices && l.price !== "" ? { price: l.price } : {}) })),
   );
 
   return (
@@ -93,32 +103,40 @@ export function SaleFields({ products, customers, locations, stock, canOverrideP
           <tbody>
             {lines.map((l, i) => {
               const p = byId.get(l.productId);
+              const pack = packOf(l);
               const available = locationId && p ? stock[locationId]?.[p.id] ?? 0 : null;
               const qty = Number.parseInt(l.quantity, 10) || 0;
+              const short = available !== null && p ? (unitsWanted.get(p.id) ?? 0) > available : false;
               return (
                 <tr key={l.key}>
                   <td style={{ minWidth: 220 }}>
-                    <select aria-label={`Product ${i + 1}`} value={l.productId} onChange={(e) => update(l.key, { productId: e.target.value, price: "" })}>
+                    <select aria-label={`Product ${i + 1}`} value={l.productId} onChange={(e) => update(l.key, { productId: e.target.value, packId: "", price: "" })}>
                       <option value="">Choose product…</option>
-                      {products.map((prod) => (
-                        <option key={prod.id} value={prod.id} disabled={used.has(prod.id) && prod.id !== l.productId}>
-                          {prod.name} ({prod.sku})
-                        </option>
-                      ))}
+                      {products.map((prod) => <option key={prod.id} value={prod.id}>{prod.name} ({prod.sku})</option>)}
                     </select>
+                    {p && p.packs.length > 0 && (
+                      <select aria-label={`Pack ${i + 1}`} value={l.packId} onChange={(e) => update(l.key, { packId: e.target.value, price: "" })} style={{ marginTop: 4 }}>
+                        <option value="">Single {p.unit}</option>
+                        {p.packs.map((pk) => <option key={pk.id} value={pk.id}>{pk.name} of {pk.unitsPerPack} {p.unit}</option>)}
+                      </select>
+                    )}
                     {available !== null && (
-                      <div className={`small ${qty > available ? "neg" : "muted"}`}>{available} {p!.unit} in stock here</div>
+                      <div className={`small ${short ? "neg" : "muted"}`}>
+                        {available} {p!.unit} in stock here{pack ? ` (${Math.floor(available / pack.unitsPerPack)} ${pack.name.toLowerCase()})` : ""}
+                      </div>
                     )}
                   </td>
                   <td className="num" style={{ width: 90 }}>
                     <input aria-label={`Quantity ${i + 1}`} type="number" min={1} step={1} value={l.quantity}
                       onChange={(e) => update(l.key, { quantity: e.target.value })} style={{ textAlign: "right" }} />
+                    {pack && <div className="muted small">= {qty * pack.unitsPerPack} {p!.unit}</div>}
                   </td>
                   <td className="num nowrap" style={{ width: 150 }}>
                     {canOverridePrices && p ? (
                       <input aria-label={`Price ${i + 1}`} type="text" inputMode="decimal" value={l.price}
-                        placeholder={centsToInput(listPrice(p))} onChange={(e) => update(l.key, { price: e.target.value })} style={{ textAlign: "right" }} />
-                    ) : p ? formatMoney(listPrice(p)) : "—"}
+                        placeholder={centsToInput(listPrice(itemOf(l)))} onChange={(e) => update(l.key, { price: e.target.value })} style={{ textAlign: "right" }} />
+                    ) : p ? formatMoney(listPrice(itemOf(l))) : "—"}
+                    {pack && <div className="muted small">per {pack.name.toLowerCase()}</div>}
                   </td>
                   <td className="num nowrap">{p ? formatMoney(qty * priceOf(l)) : "—"}</td>
                   <td>
