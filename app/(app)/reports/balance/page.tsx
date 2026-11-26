@@ -5,6 +5,7 @@ import { monthRange, startOfDay, todayInLagos } from "@/lib/dates";
 import { formatMoney } from "@/lib/format";
 import { getSettings } from "@/lib/settings";
 import { PrintButton } from "@/components/PrintButton";
+import { LetterheadFooter, LetterheadHeader } from "@/components/Letterhead";
 
 export const metadata = { title: "Balance sheet" };
 
@@ -39,8 +40,8 @@ export default async function BalanceSheetPage({ searchParams }: { searchParams:
         <PrintButton label="Print" />
       </form>
       <article className="card fs">
+        <LetterheadHeader settings={settings} />
         <header className="fs-head">
-          <div className="invoice-business">{settings.businessName}</div>
           <h2>Balance sheet as at {asOfLabel}</h2>
         </header>
         <table className="table fs-table">
@@ -68,6 +69,7 @@ export default async function BalanceSheetPage({ searchParams }: { searchParams:
           rebates, expenses, stock (valued at current cost) and money owed both ways. Trifold hires trucks rather than owning them and has
           no loans, so there are no fixed assets or borrowings. Have your accountant review before filing.
         </p>
+        <LetterheadFooter settings={settings} />
       </article>
     </>
   );

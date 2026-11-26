@@ -38,7 +38,10 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
       </div>
       <article className="receipt">
         <header>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/trifold-logo.png" alt="" className="receipt-logo" width={708} height={423} />
           <div className="receipt-business">{settings.businessName}</div>
+          {settings.tagline && <div>{settings.tagline}</div>}
           {settings.address && <div className="pre">{settings.address}</div>}
           {settings.phone && <div>{settings.phone}</div>}
           {sale.location && <div>{sale.location.name}</div>}

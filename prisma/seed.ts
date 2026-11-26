@@ -23,8 +23,6 @@ async function main() {
   if (process.env.SEED_DEMO_DATA === "false" || (await prisma.product.count()) > 0) return;
 
   await prisma.setting.createMany({ data: [
-    { key: "businessName", value: "Trifold Limited" },
-    { key: "address", value: "Cement distributors: Dangote and Lafarge" },
     { key: "openingCash", value: "50000000" },
   ] });
 

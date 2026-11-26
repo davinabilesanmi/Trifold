@@ -1,4 +1,4 @@
-# Trifold Stock
+# Trifold Global: stock, sales and accounts
 
 Stock management for Trifold Limited: track products and quantities at each
 location, record stock coming in, going out, and moving between sites, and
@@ -6,21 +6,21 @@ control who can do what.
 
 ## Features
 
-Built for Trifold Limited, a distributor of Dangote and Lafarge cement with a depot and retail outlets.
+Built for Trifold Global (Distribution Solutions), Ibadan: a distributor of Dangote and Lafarge cement with a depot and retail outlets. Invoices, receipts and statements use Trifold Global's letterhead (logo in `public/`, business details in Settings).
 
-- **Sales**: sell from the depot or an outlet at retail or wholesale prices. Prices **include VAT**, and the VAT inside each total is shown on the invoice and receipt. **Bank transfer** is the default payment. Sales can be paid in full, part-paid or put on credit for a named customer.
+- **Sales**: sell from the depot or an outlet at retail or wholesale prices. Prices include the VAT charged by Lafarge and Dangote. Trifold isn't VAT-registered, so the system doesn't split out or file VAT; invoices just carry a "prices include VAT" note. **Bank transfer** is the default payment. Sales can be paid in full, part-paid or put on credit for a named customer.
 - **Discounts**: only people with the *give discounts* responsibility (management) see the discount box.
 - **Invoices and receipts**: a printable A4 invoice with Trifold's details and bank account, plus a narrow till receipt for 80 mm counter printers.
 - **Pack sizes**: e.g. *Trailer = 600 bags*, with their own prices. Stock is always counted in bags.
 - **Customers and suppliers**, with balances owed both ways and **opening balances** for money owed before the system started.
 - **Purchase orders** from Dangote and Lafarge: receive deliveries in parts, pay in advance or after, and the product cost updates automatically.
 - **Locations and stock movements**: receive, issue, transfer between depot and outlets, and adjust after a count. Stock can never go negative.
-- **Expenses and other money**: running costs (haulage, loading, diesel, salaries and so on), other income, owner capital and drawings, and VAT paid to FIRS.
+- **Expenses, rebates and other money**: running costs (truck hire, loading, diesel, salaries and so on), **rebates from Lafarge/Dangote** (recorded by the MD when paid into the bank), other income, and owner capital and drawings.
 - **Reports**:
   - **Daily report**: sales, money received, credit given, bags sold, sales by product, rep and location, plus a **stock report** per location (opening, delivered, transfers in and out, sold, other, closing).
   - **Sales and stock by period**, with Excel (CSV) downloads.
-  - **Monthly income statement**: sales less discounts and VAT, cost of cement sold, expenses and net profit.
-  - **Monthly balance sheet**: cash and bank, stock, money owed both ways, VAT owed to FIRS and owner's equity.
+  - **Monthly income statement**: sales less discounts, cost of cement sold, rebates, expenses and net profit.
+  - **Monthly balance sheet**: cash and bank, stock, money owed both ways and owner's equity. Trifold hires its trucks and has no loans, so there are no fixed assets or borrowings.
 - **Staff and responsibilities**: the admin ticks what each person may do and which outlet(s) they work at. Presets:
 
   | Preset | Typical access |

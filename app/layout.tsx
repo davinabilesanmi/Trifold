@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "Trifold Stock", template: "%s · Trifold Stock" },
-  description: "Stock management for Trifold Limited",
+  title: { default: "Trifold Global", template: "%s · Trifold Global" },
+  description: "Stock, sales and accounts for Trifold Global, distributors of Dangote and Lafarge cement",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

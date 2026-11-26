@@ -5,6 +5,7 @@ import { monthRange } from "@/lib/dates";
 import { formatMoney } from "@/lib/format";
 import { getSettings } from "@/lib/settings";
 import { PrintButton } from "@/components/PrintButton";
+import { LetterheadFooter, LetterheadHeader } from "@/components/Letterhead";
 
 export const metadata = { title: "Income statement" };
 
@@ -32,8 +33,8 @@ export default async function IncomeStatementPage({ searchParams }: { searchPara
         <PrintButton label="Print" />
       </form>
       <article className="card fs">
+        <LetterheadHeader settings={settings} />
         <header className="fs-head">
-          <div className="invoice-business">{settings.businessName}</div>
           <h2>Income statement for {label}</h2>
         </header>
         <table className="table fs-table">
@@ -62,6 +63,7 @@ export default async function IncomeStatementPage({ searchParams }: { searchPara
           purchase cost at the time of sale. Owner capital and drawings aren&apos;t income or expenses and appear on the balance sheet
           instead. Have your accountant review before filing.
         </p>
+        <LetterheadFooter settings={settings} />
       </article>
     </>
   );

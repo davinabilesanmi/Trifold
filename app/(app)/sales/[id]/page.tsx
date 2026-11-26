@@ -13,6 +13,7 @@ import { ActionForm } from "@/components/ActionForm";
 import { SubmitButton } from "@/components/SubmitButton";
 import { PrintButton } from "@/components/PrintButton";
 import { PaymentStatus } from "@/components/SalesTable";
+import { LetterheadFooter, LetterheadHeader } from "@/components/Letterhead";
 
 export default async function SalePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ created?: string }> }) {
   const user = await requireUser();
@@ -60,32 +61,28 @@ export default async function SalePage({ params, searchParams }: { params: Promi
       )}
 
       <article className="card invoice">
-        <header className="invoice-head">
-          <div>
-            <div className="invoice-business">{settings.businessName}</div>
-            {settings.address && <div className="pre muted">{settings.address}</div>}
-            <div className="muted">{[settings.phone, settings.email].filter(Boolean).join(" · ")}</div>
-          </div>
+        <LetterheadHeader settings={settings} />
+        <div className="invoice-head">
+          <section className="invoice-to">
+            <div className="muted small">Bill to</div>
+            {sale.customer ? (
+              <>
+                <strong><Link href={`/customers/${sale.customer.id}`}>{sale.customer.name}</Link></strong>
+                {sale.customer.address && <div className="pre">{sale.customer.address}</div>}
+                {sale.customer.phone && <div>{sale.customer.phone}</div>}
+              </>
+            ) : <strong>Walk-in customer</strong>}
+          </section>
           <div className="invoice-meta">
             <div className="invoice-title">{cancelled ? "CANCELLED " : ""}{opening ? "STATEMENT" : "INVOICE"}</div>
             <dl className="details">
               <dt>Number</dt><dd>{sale.number}</dd>
               <dt>Date</dt><dd>{formatDateTime(sale.createdAt)}</dd>
               {!opening && <><dt>Prices</dt><dd>{isPriceLevel(sale.priceLevel) ? PRICE_LEVEL_LABELS[sale.priceLevel] : sale.priceLevel}</dd></>}
+              {sale.location && <><dt>From</dt><dd>{sale.location.name}</dd></>}
             </dl>
           </div>
-        </header>
-
-        <section className="invoice-to">
-          <div className="muted small">Bill to</div>
-          {sale.customer ? (
-            <>
-              <strong><Link href={`/customers/${sale.customer.id}`}>{sale.customer.name}</Link></strong>
-              {sale.customer.address && <div className="pre">{sale.customer.address}</div>}
-              {sale.customer.phone && <div>{sale.customer.phone}</div>}
-            </>
-          ) : <strong>Walk-in customer</strong>}
-        </section>
+        </div>
 
         <div className="table-wrap">
           <table className="table">
@@ -131,6 +128,11 @@ export default async function SalePage({ params, searchParams }: { params: Promi
           <div className="invoice-bank"><div className="muted small">Pay to</div><div className="pre">{settings.bankDetails}</div></div>
         )}
         {settings.invoiceFooter && <p className="invoice-footer muted">{settings.invoiceFooter}</p>}
+        <div className="lh-sign">
+          <div>For {settings.businessName}: authorised signature</div>
+          <div>Received by (customer)</div>
+        </div>
+        <LetterheadFooter settings={settings} />
       </article>
 
       <div className="grid-2 no-print" style={{ marginTop: "1.25rem" }}>

@@ -43,7 +43,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="shell">
       <aside className="sidebar">
-        <Link href="/" className="brand"><span className="brand-mark">T</span> Trifold Stock</Link>
+        <Link href="/" className="brand">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/trifold-mark.png" alt="" className="brand-mark" width={32} height={32} />
+          <span className="brand-name">Trifold Global<small>Stock &amp; sales</small></span>
+        </Link>
         <NavLinks groups={groups} />
         <div className="sidebar-footer">
           <Link href="/account" className="user-chip">

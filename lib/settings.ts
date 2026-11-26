@@ -2,10 +2,12 @@ import "server-only";
 import { prisma } from "./db";
 
 export const SETTING_FIELDS = [
-  { key: "businessName", label: "Business name", defaultValue: "Trifold Limited" },
-  { key: "address", label: "Address", defaultValue: "", multiline: true },
-  { key: "phone", label: "Phone", defaultValue: "" },
-  { key: "email", label: "Email", defaultValue: "" },
+  { key: "businessName", label: "Business name", defaultValue: "Trifold Global" },
+  { key: "tagline", label: "Tagline", defaultValue: "Distribution Solutions" },
+  { key: "address", label: "Address", defaultValue: "1st floor, Bank of Agric building,\nTotal Garden, Ibadan, Oyo State", multiline: true },
+  { key: "phone", label: "Phone", defaultValue: "08033390608" },
+  { key: "email", label: "Email", defaultValue: "info@trifoldglobal.com" },
+  { key: "website", label: "Website", defaultValue: "www.trifoldglobal.com" },
   { key: "bankDetails", label: "Bank details for payment", defaultValue: "", multiline: true,
     hint: "Printed on invoices, e.g. bank name, account name and account number." },
   { key: "invoiceFooter", label: "Invoice footer", defaultValue: "Thank you for your business.", multiline: true },
