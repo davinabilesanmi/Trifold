@@ -11,6 +11,9 @@ OUT=dist/trifold-cpanel
 rm -rf dist && mkdir -p "$OUT"
 # The self-contained server, its static files and the public folder (logo etc.).
 cp -R .next/standalone/. "$OUT/"
+# Next copies local .env files into the build; never ship them. On the server the
+# settings come from the Node.js app's environment variables only.
+find "$OUT" -maxdepth 1 -name ".env*" -delete
 mkdir -p "$OUT/.next" && cp -R .next/static "$OUT/.next/static"
 cp -R public "$OUT/public"
 # Schema, migrations and the database setup command (run from the cPanel Terminal).
@@ -28,5 +31,6 @@ Set up or update the database from the cPanel Terminal:  node setup-database.js
 Full instructions: DEPLOY-CPANEL.md in the GitHub repository.
 TXT
 
+if find "$OUT" -name ".env*" -not -path "*/node_modules/*" | grep -q .; then echo "A .env file is still in the package; stopping." >&2; exit 1; fi
 (cd dist && zip -qr trifold-cpanel.zip trifold-cpanel)
 echo "Package ready: dist/trifold-cpanel.zip ($(du -h dist/trifold-cpanel.zip | cut -f1))"

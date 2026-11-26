@@ -50,6 +50,10 @@ Paste them only into cPanel (step 3). Don't save them in GitHub or send them by 
    If there isn't one, click **Run workflow** and wait about five minutes.
 2. Under **Artifacts**, download **trifold-cpanel**. GitHub downloads a zip that contains `trifold-cpanel.zip`.
 
+Don't use cPanel's **Git Version Control** to copy the repository. The repository is private, so cPanel can't
+reach it ("requires credentials"), and it holds the source code rather than the ready-to-run package.
+Uploading `trifold-cpanel.zip` is all that's needed.
+
 ---
 
 ## 3. Install it in cPanel
