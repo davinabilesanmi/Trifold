@@ -1,9 +1,7 @@
-import path from "node:path";
 import { PrismaClient } from "@prisma/client";
+import { TEST_DATABASE_URL } from "./test-db";
 
-export const prisma = new PrismaClient({
-  datasources: { db: { url: `file:${path.resolve(__dirname, "../prisma/test.db")}?connection_limit=1` } },
-});
+export const prisma = new PrismaClient({ datasources: { db: { url: TEST_DATABASE_URL } } });
 
 /** Empties every table, children first. */
 export async function resetDb() {

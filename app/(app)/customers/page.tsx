@@ -19,7 +19,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
   const term = q.trim();
   const where: Prisma.CustomerWhereInput = {
     ...(archived ? {} : { active: true }),
-    ...(term ? { OR: [{ name: { contains: term } }, { phone: { contains: term } }, { email: { contains: term } }] } : {}),
+    ...(term ? { OR: [{ name: { contains: term, mode: "insensitive" } }, { phone: { contains: term, mode: "insensitive" } }, { email: { contains: term, mode: "insensitive" } }] } : {}),
   };
   const customers = await prisma.customer.findMany({ where, orderBy: [{ active: "desc" }, { name: "asc" }] });
   const balances = await customerBalances(customers.map((c) => c.id));

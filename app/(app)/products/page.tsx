@@ -18,7 +18,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
 
   const where: Prisma.ProductWhereInput = {
     ...(archived ? {} : { active: true }),
-    ...(term ? { OR: [{ name: { contains: term } }, { sku: { contains: term } }, { category: { contains: term } }] } : {}),
+    ...(term ? { OR: [{ name: { contains: term, mode: "insensitive" } }, { sku: { contains: term, mode: "insensitive" } }, { category: { contains: term, mode: "insensitive" } }] } : {}),
   };
   let products = await productsWithTotals(where);
   if (status === "attention") products = products.filter((p) => p.status !== "OK");

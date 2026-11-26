@@ -36,26 +36,31 @@ Built for Trifold Global (Distribution Solutions), Ibadan: a distributor of Dang
 
 ## Tech stack
 
-Next.js 16 (App Router, Server Actions), React 19, TypeScript, Prisma 6, and
-SQLite for development. Tests use Vitest.
+Next.js 16 (App Router, Server Actions), React 19, TypeScript, Prisma 6 and PostgreSQL
+(Supabase in production). Tests use Vitest against a real Postgres database.
+Production runs on cPanel's "Setup Node.js App". See **[DEPLOY-CPANEL.md](DEPLOY-CPANEL.md)**.
 
-## Getting started
+## Getting started (development)
 
-Requires Node.js 20 or later.
+Requires Node.js 20.9 or later and a local PostgreSQL server.
 
 ```bash
+# One-off: create a database user and two databases (development and tests)
+sudo -u postgres psql -c "CREATE ROLE trifold LOGIN PASSWORD 'trifold' CREATEDB;"
+sudo -u postgres createdb -O trifold trifold_dev
+sudo -u postgres createdb -O trifold trifold_test
+
 npm install
-cp .env.example .env        # then edit the admin credentials
-npx prisma migrate deploy   # create the database
-npm run db:seed             # create the admin user and demo data
+cp .env.example .env        # points at the databases above
+npm run db:deploy           # create the tables
+npm run db:seed             # owner account + sample cement data
 npm run dev                 # http://localhost:3000
 ```
 
-Sign in with `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` from `.env`. The default
-is `admin@trifold.local` / `ChangeMe123!`. **Change it** on the *Your account* page,
-then fill in Trifold's address and bank details under *Settings*.
-The seed adds sample cement data (Dangote and Lafarge products, a depot, two outlets, deliveries, sales and expenses)
-and one demo account per role: `gm@`, `sysadmin@`, `ikeja@`, `lekki@` and `rep@trifold.local`, all with the same password.
+Sign in with `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` from `.env` (default
+`admin@trifold.local` / `ChangeMe123!`). The seed adds sample cement data (Dangote and Lafarge
+products, a depot, two outlets, deliveries, sales and expenses) and one demo account per role:
+`gm@`, `sysadmin@`, `ikeja@`, `lekki@` and `rep@trifold.local`, all with the same password.
 **For real use, set `SEED_DEMO_DATA="false"`** so only the owner account is created.
 
 ## Scripts
@@ -64,10 +69,16 @@ and one demo account per role: `gm@`, `sysadmin@`, `ikeja@`, `lekki@` and `rep@t
 |---|---|
 | `npm run dev` | Start the development server |
 | `npm run build` / `npm start` | Make a production build and serve it |
-| `npm test` | Run the unit tests (uses a separate `prisma/test.db`) |
+| `npm test` | Run the tests. **Wipes and rebuilds `TEST_DATABASE_URL`**, which must name a database containing "test" |
 | `npm run typecheck` | Check types with TypeScript |
 | `npm run db:migrate` | Create a migration after changing `prisma/schema.prisma` |
-| `npm run db:seed` | Seed the admin user (and optional demo data) |
+| `npm run db:deploy` | Apply migrations to the database in `DATABASE_URL` / `DIRECT_URL` |
+| `npm run db:seed` | Create the owner account (and demo data unless `SEED_DEMO_DATA="false"`) |
+| `npm run package:cpanel` | Build `dist/trifold-cpanel.zip` for uploading to cPanel |
+
+GitHub Actions does the same on every push to `main`: **"Build cPanel package"** tests the app
+and attaches the zip to the run, and **"Set up or update the database"** (run by hand) applies
+migrations to Supabase using repository secrets.
 
 ## Project layout
 
@@ -91,16 +102,17 @@ lib/
   permissions.ts         Roles and permission checks
   actions/               Server actions for each area
 prisma/                  Schema, migrations, seed
+scripts/package-cpanel.sh  Builds the cPanel upload
+.github/workflows/       Package build and database setup
 tests/                   Vitest tests
 ```
 
 ## Production notes
 
-- **Database**: SQLite is fine for a single server. For production, switch
-  `provider` in `prisma/schema.prisma` to `"postgresql"`, set `DATABASE_URL`,
-  regenerate the migrations, then run `npm run db:deploy`.
-  With SQLite, keep `?connection_limit=1` in the URL. It makes concurrent stock
-  movements queue instead of deadlocking.
-- **HTTPS**: the session cookie is marked `Secure` in production, so serve the app over HTTPS.
-- **Currency**: amounts are shown in naira (NGN) by default. Set `NEXT_PUBLIC_CURRENCY`
-  (for example `USD`) before building to change it.
+- **Hosting**: cPanel "Setup Node.js App" runs `server.js` from the package; data is in Supabase.
+  Step-by-step instructions: [DEPLOY-CPANEL.md](DEPLOY-CPANEL.md).
+- **Database connections**: `DATABASE_URL` is Supabase's transaction pooler (port 6543, with
+  `?pgbouncer=true&connection_limit=5`); `DIRECT_URL` is the session pooler (port 5432), used for migrations.
+- **HTTPS**: the session cookie is marked `Secure` in production, so serve the app over HTTPS (cPanel AutoSSL).
+- **Currency**: amounts are shown in naira (NGN). Set `NEXT_PUBLIC_CURRENCY` before building to change it.
+- **Time zone**: everything is shown in Lagos time whatever the server's clock is set to.

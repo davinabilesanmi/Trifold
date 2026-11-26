@@ -26,7 +26,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
     ...saleWhere(user),
     ...(createdAt ? { createdAt } : {}),
     ...(sp.status === "cancelled" ? { status: "CANCELLED" } : sp.status ? { status: "COMPLETED" } : {}),
-    ...(term ? { OR: [{ number: { contains: term } }, { customer: { name: { contains: term } } }] } : {}),
+    ...(term ? { OR: [{ number: { contains: term, mode: "insensitive" } }, { customer: { name: { contains: term, mode: "insensitive" } } }] } : {}),
   };
   let sales = await prisma.sale.findMany({ where, orderBy: { createdAt: "desc" }, include: saleRowInclude });
   if (sp.status === "unpaid") sales = sales.filter((s) => saleBalance(s) > 0);

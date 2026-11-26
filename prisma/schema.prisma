@@ -1,18 +1,22 @@
-// Trifold stock management data model.
-// SQLite is used for local development; switch `provider` to "postgresql"
-// for production deployments.
+// Trifold Global stock, sales and accounts data model (PostgreSQL / Supabase).
 
 generator client {
   provider = "prisma-client-js"
+  // "native" for this machine, plus the Linux flavours cPanel hosts commonly run
+  // (CloudLinux / AlmaLinux are RHEL-based), so the same build works on the server.
+  binaryTargets = ["native", "rhel-openssl-1.0.x", "rhel-openssl-1.1.x", "rhel-openssl-3.0.x", "debian-openssl-3.0.x"]
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // App connections (on Supabase: the pooled connection string, port 6543).
+  url       = env("DATABASE_URL")
+  // Migrations (on Supabase: the direct connection string, port 5432).
+  directUrl = env("DIRECT_URL")
 }
 
 /// permissions is a comma-separated list of responsibilities (lib/permissions.ts).
-/// role is a display label: ADMIN, MANAGER or STAFF when permissions match that preset, else CUSTOM.
+/// role is a display label: the preset (OWNER, SYSADMIN, GM, OUTLET_MANAGER, SALES_REP) the permissions match, else CUSTOM.
 model User {
   id               String            @id @default(cuid())
   email            String            @unique
