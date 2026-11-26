@@ -83,11 +83,27 @@ Uploading `trifold-cpanel.zip` is all that's needed.
 
    Click **Create**, then **Start** (or **Restart**).
    Don't click "Run NPM Install". Everything the system needs is already in the package.
+### If your host shows a deploy screen instead of "Setup Node.js App"
+
+Some hosts have a newer deploy tool that asks for paths and commands. Upload `trifold-cpanel.zip` as the source, then enter:
+
+| Field | Enter |
+|---|---|
+| Application path from root | `trifold-cpanel` |
+| Framework | Leave as "Not detected", or choose Node.js / Other. Not Next.js: it would try to rebuild. |
+| Build command | Leave blank (or `echo ready` if it's required). The package is already built. |
+| Startup command | `node server.js` |
+| Output directory | Leave blank |
+
+Add the same environment variables as above, plus **`HOSTNAME`** = `0.0.0.0`.
+The tool may save them into a `.env` file inside the app folder. That's expected, and the package marks the file as private.
+
 ---
 
 ## 4. Set up the database (cPanel Terminal, once)
 
 1. In **Setup Node.js App**, open the Trifold app. At the top is a box headed **"Enter to the virtual environment"**, containing a command that starts with `source`. Copy it.
+   (With a deploy tool instead, use its **Console**, **Terminal** or **Run command** option for the app.)
 2. Open **Terminal** (in cPanel under *Advanced*), paste that command and press Enter.
 3. Type this and press Enter:
 

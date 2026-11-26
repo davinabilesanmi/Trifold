@@ -31,10 +31,16 @@ Set up or update the database from the cPanel Terminal:  node setup-database.js
 Full instructions: DEPLOY-CPANEL.md in the GitHub repository.
 TXT
 
+# Some hosts save the app's environment variables into a .env file next to server.js,
+# but only if an ignore list marks that file as private. Ship one (in the app folder and
+# at the top of the zip) so the settings are written and never treated as source code.
+printf '.env\n.env.*\n' > "$OUT/.gitignore"
+printf '.env\n.env.*\n' > dist/.gitignore
+
 if find "$OUT" -name ".env*" -not -path "*/node_modules/*" | grep -q .; then echo "A .env file is still in the package; stopping." >&2; exit 1; fi
 # The folder alone is enough for hosts that build and run in place; the zip is for uploading.
 if command -v zip >/dev/null 2>&1; then
-  (cd dist && zip -qr trifold-cpanel.zip trifold-cpanel)
+  (cd dist && zip -qr trifold-cpanel.zip .gitignore trifold-cpanel)
   echo "Package ready: dist/trifold-cpanel.zip ($(du -h dist/trifold-cpanel.zip | cut -f1)) and folder dist/trifold-cpanel"
 else
   echo "Package ready: folder dist/trifold-cpanel (zip not installed, so no zip made)"

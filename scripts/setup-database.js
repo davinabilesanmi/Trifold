@@ -166,8 +166,22 @@ async function ensureOwner(db) {
 
 // ---------------------------------------------------------------------------
 
+/** Reads settings a host saved in a .env file next to this script (environment variables win). */
+function loadEnvFile() {
+  const file = path.join(ROOT, ".env");
+  if (!fs.existsSync(file)) return;
+  for (const raw of fs.readFileSync(file, "utf8").split(/\r?\n/)) {
+    const m = raw.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
+    if (!m || process.env[m[1]] !== undefined) continue;
+    let value = m[2];
+    if (/^(["']).*\1$/.test(value)) value = value.slice(1, -1);
+    process.env[m[1]] = value;
+  }
+}
+
 async function main() {
   console.log("\nTrifold Global: database setup\n");
+  loadEnvFile();
   let url = process.env.DIRECT_URL || process.env.DATABASE_URL;
   if (!url) {
     console.log("Paste the Supabase *Session pooler* connection string (port 5432), with your password in it.");
