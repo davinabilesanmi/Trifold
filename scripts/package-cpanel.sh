@@ -32,5 +32,10 @@ Full instructions: DEPLOY-CPANEL.md in the GitHub repository.
 TXT
 
 if find "$OUT" -name ".env*" -not -path "*/node_modules/*" | grep -q .; then echo "A .env file is still in the package; stopping." >&2; exit 1; fi
-(cd dist && zip -qr trifold-cpanel.zip trifold-cpanel)
-echo "Package ready: dist/trifold-cpanel.zip ($(du -h dist/trifold-cpanel.zip | cut -f1))"
+# The folder alone is enough for hosts that build and run in place; the zip is for uploading.
+if command -v zip >/dev/null 2>&1; then
+  (cd dist && zip -qr trifold-cpanel.zip trifold-cpanel)
+  echo "Package ready: dist/trifold-cpanel.zip ($(du -h dist/trifold-cpanel.zip | cut -f1)) and folder dist/trifold-cpanel"
+else
+  echo "Package ready: folder dist/trifold-cpanel (zip not installed, so no zip made)"
+fi
