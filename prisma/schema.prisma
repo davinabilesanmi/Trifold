@@ -1,0 +1,342 @@
+// Trifold Global stock, sales and accounts data model (PostgreSQL / Supabase).
+
+generator client {
+  provider = "prisma-client-js"
+  // "native" for this machine, plus the Linux flavours cPanel hosts commonly run
+  // (CloudLinux / AlmaLinux are RHEL-based), so the same build works on the server.
+  binaryTargets = ["native", "rhel-openssl-1.0.x", "rhel-openssl-1.1.x", "rhel-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  // App connections (on Supabase: the pooled connection string, port 6543).
+  url       = env("DATABASE_URL")
+  // Migrations (on Supabase: the direct connection string, port 5432).
+  directUrl = env("DIRECT_URL")
+}
+
+/// permissions is a comma-separated list of responsibilities (lib/permissions.ts).
+/// role is a display label: the preset (OWNER, SYSADMIN, GM, OUTLET_MANAGER, SALES_REP) the permissions match, else CUSTOM.
+model User {
+  id               String            @id @default(cuid())
+  email            String            @unique
+  name             String
+  passwordHash     String
+  role             String            @default("STAFF")
+  jobTitle         String?
+  permissions      String            @default("")
+  /// Comma-separated Location ids this person works at; empty means all locations.
+  locationIds      String            @default("")
+  active           Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  sessions         Session[]
+  movements        Movement[]
+  sales            Sale[]
+  payments         Payment[]
+  purchaseOrders   PurchaseOrder[]
+  supplierPayments SupplierPayment[]
+  expenses         Expense[]
+}
+
+/// `id` is the SHA-256 hash of the session token stored in the cookie.
+model Session {
+  id        String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Location {
+  id             String          @id @default(cuid())
+  code           String          @unique
+  name           String
+  address        String?
+  active         Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  stock          StockLevel[]
+  movementsFrom  Movement[]      @relation("MovementFrom")
+  movementsTo    Movement[]      @relation("MovementTo")
+  sales          Sale[]
+  purchaseOrders PurchaseOrder[]
+  expenses       Expense[]
+}
+
+model Product {
+  id                  String              @id @default(cuid())
+  sku                 String              @unique
+  name                String
+  description         String?
+  category            String?
+  unit                String              @default("pcs")
+  /// Money is stored as whole kobo. The columns are Float (64-bit) rather than
+  /// Int (32-bit, max ~₦21.4m) so large invoices fit; values are always whole
+  /// numbers, which a 64-bit float holds exactly up to ~₦90 trillion.
+  /// costCents is the latest purchase cost, updated when stock is received on a purchase order.
+  costCents           Float               @default(0)
+  priceRetailCents    Float               @default(0)
+  priceWholesaleCents Float               @default(0)
+  reorderLevel        Int                 @default(0)
+  active              Boolean             @default(true)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  stock               StockLevel[]
+  movements           Movement[]
+  saleLines           SaleLine[]
+  packs               ProductPack[]
+  purchaseLines       PurchaseOrderLine[]
+}
+
+model StockLevel {
+  productId  String
+  locationId String
+  quantity   Int      @default(0)
+  updatedAt  DateTime @updatedAt
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@id([productId, locationId])
+  @@index([locationId])
+}
+
+/// type is one of RECEIPT | ISSUE | TRANSFER | ADJUSTMENT (see lib/stock.ts).
+/// RECEIPT: into toLocation. ISSUE: out of fromLocation.
+/// TRANSFER: fromLocation -> toLocation. ADJUSTMENT: stock count correction
+/// at toLocation; `quantity` is the signed change.
+model Movement {
+  id              String         @id @default(cuid())
+  type            String
+  productId       String
+  product         Product        @relation(fields: [productId], references: [id])
+  fromLocationId  String?
+  fromLocation    Location?      @relation("MovementFrom", fields: [fromLocationId], references: [id])
+  toLocationId    String?
+  toLocation      Location?      @relation("MovementTo", fields: [toLocationId], references: [id])
+  quantity        Int
+  reference       String?
+  note            String?
+  userId          String
+  user            User           @relation(fields: [userId], references: [id])
+  saleId          String?
+  sale            Sale?          @relation(fields: [saleId], references: [id])
+  purchaseOrderId String?
+  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  createdAt       DateTime       @default(now())
+
+  @@index([productId, createdAt])
+  @@index([createdAt])
+}
+
+/// Sequential document numbers (e.g. INV-000001, PO-000001).
+model Counter {
+  key   String @id
+  value Int    @default(0)
+}
+
+/// Business details shown on invoices, edited by admins on the Settings page.
+model Setting {
+  key   String @id
+  value String
+}
+
+/// type is RETAIL or WHOLESALE and sets which price a sale starts with.
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  type      String   @default("RETAIL")
+  notes     String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sales     Sale[]
+
+  @@index([name])
+}
+
+/// status is COMPLETED or CANCELLED. Cancelling returns the stock and refunds payments.
+/// kind is SALE, or OPENING_BALANCE for money a customer owed before Trifold started
+/// using the system (no lines, no location, no stock).
+model Sale {
+  id            String     @id @default(cuid())
+  kind          String     @default("SALE")
+  number        String     @unique
+  customerId    String?
+  customer      Customer?  @relation(fields: [customerId], references: [id])
+  locationId    String?
+  location      Location?  @relation(fields: [locationId], references: [id])
+  priceLevel    String
+  status        String     @default("COMPLETED")
+  totalCents    Float
+  /// Discount given on the whole sale; totalCents is after the discount.
+  discountCents Float      @default(0)
+  /// VAT rate (%) in force when sold, and the VAT contained in totalCents (prices include VAT).
+  vatRate       Float      @default(0)
+  vatCents      Float      @default(0)
+  note          String?
+  userId        String
+  user          User       @relation(fields: [userId], references: [id])
+  createdAt     DateTime   @default(now())
+  cancelledAt   DateTime?
+  cancelReason  String?
+  lines         SaleLine[]
+  payments      Payment[]
+  movements     Movement[]
+
+  @@index([createdAt])
+  @@index([customerId])
+}
+
+model SaleLine {
+  id             String       @id @default(cuid())
+  saleId         String
+  sale           Sale         @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product      @relation(fields: [productId], references: [id])
+  quantity       Int
+  /// Sold as a pack (e.g. a carton) when set; quantity counts packs.
+  packId         String?
+  pack           ProductPack? @relation(fields: [packId], references: [id])
+  packName       String?
+  unitsPerPack   Int          @default(1)
+  unitPriceCents Float
+  /// Cost at the time of sale, for profit reporting.
+  unitCostCents  Float
+
+  @@index([saleId])
+  @@index([productId])
+}
+
+/// A customer payment against a sale. Refunds are negative amounts.
+/// method is CASH, TRANSFER, POS or OTHER.
+model Payment {
+  id          String   @id @default(cuid())
+  saleId      String
+  sale        Sale     @relation(fields: [saleId], references: [id])
+  amountCents Float
+  method      String
+  reference   String?
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  paidAt      DateTime @default(now())
+
+  @@index([saleId])
+  @@index([paidAt])
+}
+
+model Supplier {
+  id             String          @id @default(cuid())
+  name           String
+  contactName    String?
+  phone          String?
+  email          String?
+  address        String?
+  notes          String?
+  active         Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  purchaseOrders PurchaseOrder[]
+}
+
+/// status is ORDERED, PARTIAL, RECEIVED or CANCELLED.
+/// kind is ORDER, or OPENING_BALANCE for money Trifold owed a supplier before using the
+/// system: no lines or location, worth openingAmountCents, status RECEIVED.
+/// What Trifold owes is the value of goods received less payments made.
+model PurchaseOrder {
+  id                 String              @id @default(cuid())
+  kind               String              @default("ORDER")
+  openingAmountCents Float?
+  number             String              @unique
+  supplierId         String
+  supplier           Supplier            @relation(fields: [supplierId], references: [id])
+  locationId         String?
+  location           Location?           @relation(fields: [locationId], references: [id])
+  status             String              @default("ORDERED")
+  note               String?
+  userId             String
+  user               User                @relation(fields: [userId], references: [id])
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  lines              PurchaseOrderLine[]
+  payments           SupplierPayment[]
+  movements          Movement[]
+
+  @@index([supplierId])
+}
+
+model PurchaseOrderLine {
+  id               String        @id @default(cuid())
+  purchaseOrderId  String
+  purchaseOrder    PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  productId        String
+  product          Product       @relation(fields: [productId], references: [id])
+  quantity         Int
+  /// Ordered as a pack when set; quantity and receivedQuantity count packs.
+  packId           String?
+  pack             ProductPack?  @relation(fields: [packId], references: [id])
+  packName         String?
+  unitsPerPack     Int           @default(1)
+  receivedQuantity Int           @default(0)
+  unitCostCents    Float
+
+  @@index([purchaseOrderId])
+}
+
+model SupplierPayment {
+  id              String        @id @default(cuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  amountCents     Float
+  method          String
+  reference       String?
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  paidAt          DateTime      @default(now())
+
+  @@index([purchaseOrderId])
+}
+
+/// A way of selling or buying a product in bulk, e.g. "Carton" = 12 bottles.
+/// Stock is always counted in the product's single unit.
+model ProductPack {
+  id                  String              @id @default(cuid())
+  productId           String
+  product             Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name                String
+  unitsPerPack        Int
+  priceRetailCents    Float               @default(0)
+  priceWholesaleCents Float               @default(0)
+  active              Boolean             @default(true)
+  createdAt           DateTime            @default(now())
+  saleLines           SaleLine[]
+  purchaseLines       PurchaseOrderLine[]
+
+  @@unique([productId, name])
+}
+
+/// Money in or out that isn't a sale or supplier payment.
+/// kind: EXPENSE (in the income statement), OTHER_INCOME, CAPITAL (owner puts money in),
+/// DRAWING (owner takes money out) or VAT_REMITTANCE (VAT paid to FIRS).
+model Expense {
+  id          String    @id @default(cuid())
+  kind        String    @default("EXPENSE")
+  category    String
+  amountCents Float
+  method      String    @default("TRANSFER")
+  reference   String?
+  note        String?
+  date        DateTime
+  locationId  String?
+  location    Location? @relation(fields: [locationId], references: [id])
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  createdAt   DateTime  @default(now())
+
+  @@index([date])
+}
