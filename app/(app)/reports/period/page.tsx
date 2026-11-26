@@ -77,7 +77,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
               </table>
             </div>
           )}
-          {money && <p className="muted small">Cost uses each product&apos;s cost at the time of sale. Revenue here includes VAT; the income statement shows it net of VAT.</p>}
+          {money && <p className="muted small">Cost uses each product&apos;s cost at the time of sale.</p>}
         </section>
 
         <div className="grid-2">

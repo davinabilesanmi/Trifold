@@ -54,6 +54,16 @@ describe("VAT and discounts", () => {
 });
 
 describe("financial statements", () => {
+  it("leaves VAT out of Trifold's figures when it isn't VAT-registered (the app's default)", async () => {
+    await createSale(prisma, { customerId: customer, locationId: depot, priceLevel: "RETAIL", lines: [{ productId: cement, quantity: 10 }],
+      payment: { amountCents: 10 * N(10750), method: "TRANSFER" } }, userId);
+    const is = await incomeStatement(new Date(Date.now() - 86_400_000), later());
+    expect(is.vat).toBe(0);
+    expect(is.revenue).toBe(10 * N(10750));
+    const bs = await balanceSheet(later(), "0");
+    expect(bs.vatPayable).toBe(0);
+  });
+
   it("builds an income statement net of VAT, discounts, cost of sales and expenses", async () => {
     await createSale(prisma, { customerId: customer, locationId: depot, priceLevel: "RETAIL",
       lines: [{ productId: cement, quantity: 100 }], discountCents: N(25_000), allowDiscount: true, vatRate: 7.5,
@@ -62,8 +72,9 @@ describe("financial statements", () => {
       lines: [{ productId: cement, quantity: 5 }], vatRate: 7.5 }, userId);
     await cancelSale(prisma, cancelled.id, "mistake", userId);
     await prisma.expense.createMany({ data: [
-      { kind: "EXPENSE", category: "Haulage and transport", amountCents: N(60_000), date: new Date(), userId },
+      { kind: "EXPENSE", category: "Truck hire (haulage)", amountCents: N(60_000), date: new Date(), userId },
       { kind: "OTHER_INCOME", category: "Pallet sales", amountCents: N(5_000), date: new Date(), userId },
+      { kind: "REBATE", category: "Dangote Cement Plc", amountCents: N(30_000), date: new Date(), userId },
       { kind: "DRAWING", category: "Owner", amountCents: N(40_000), date: new Date(), userId },
     ] });
 
@@ -77,7 +88,8 @@ describe("financial statements", () => {
     expect(is.revenue).toBe(total - vat);
     expect(is.costOfSales).toBe(N(860_000));
     expect(is.totalExpenses).toBe(N(60_000)); // drawings are not an expense
-    expect(is.netProfit).toBe(total - vat - N(860_000) - N(60_000) + N(5_000));
+    expect(is.totalRebates).toBe(N(30_000));
+    expect(is.netProfit).toBe(total - vat - N(860_000) + N(30_000) - N(60_000) + N(5_000));
   });
 
   it("builds a balance sheet that balances and tracks cash, debts, stock and VAT", async () => {
@@ -88,10 +100,11 @@ describe("financial statements", () => {
       { kind: "EXPENSE", category: "Diesel and fuel", amountCents: N(50_000), date: new Date(), userId },
       { kind: "VAT_REMITTANCE", category: "FIRS", amountCents: N(20_000), date: new Date(), userId },
       { kind: "CAPITAL", category: "Owner", amountCents: N(1_000_000), date: new Date(), userId },
+      { kind: "REBATE", category: "Dangote Cement Plc", amountCents: N(15_000), date: new Date(), userId },
     ] });
 
     const bs = await balanceSheet(later(), "2,000,000");
-    expect(bs.cash).toBe(N(2_000_000 + 700_000 - 3_000_000 - 50_000 - 20_000 + 1_000_000));
+    expect(bs.cash).toBe(N(2_000_000 + 700_000 - 3_000_000 - 50_000 - 20_000 + 1_000_000 + 15_000));
     expect(bs.receivables).toBe(N(1_075_000 - 700_000));
     expect(bs.inventory).toBe(500 * N(8600));
     expect(bs.payables).toBe(600 * N(8600) - N(3_000_000));

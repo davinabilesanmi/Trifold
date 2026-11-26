@@ -125,6 +125,7 @@ export default async function SalePage({ params, searchParams }: { params: Promi
           </table>
         </div>
 
+        {!opening && settings.vatNote && <p className="muted small" style={{ marginTop: 0 }}>{settings.vatNote}</p>}
         {sale.note && <p><span className="muted small">Note:</span> {sale.note}</p>}
         {balance > 0 && settings.bankDetails && (
           <div className="invoice-bank"><div className="muted small">Pay to</div><div className="pre">{settings.bankDetails}</div></div>

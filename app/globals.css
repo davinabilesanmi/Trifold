@@ -183,7 +183,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 .page-alert { margin-bottom: 1.25rem; }
 
 /* Definition list */
-.details { display: grid; grid-template-columns: max-content 1fr; gap: 0.4rem 1.25rem; margin: 0; }
+.details { display: grid; grid-template-columns: fit-content(65%) minmax(0, 1fr); gap: 0.4rem 1.25rem; margin: 0; }
 .details dt { color: var(--muted); }
 .details dd { margin: 0; }
 
@@ -264,3 +264,4 @@ input[type="date"], input[type="month"] { font: inherit; color: var(--text); bac
 .fs-table td { border-bottom: 1px solid var(--border); }
 .fs-total td { font-weight: 700; border-top: 2px solid var(--text); }
 .card.fs .fs-table { margin: 0 0 1rem; }
+.grid-2 > * { min-width: 0; }

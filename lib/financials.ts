@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "./db";
-import { MONEY_IN, isExpenseKind } from "./expenses";
+import { MONEY_IN } from "./expenses";
 import { parseMoneyToCents } from "./format";
 
 const sum = (xs: number[]) => xs.reduce((s, x) => s + x, 0);
@@ -23,20 +23,22 @@ export async function incomeStatement(from: Date, to: Date) {
   const costOfSales = sum(sales.flatMap((s) => s.lines.map((l) => l.quantity * l.unitCostCents)));
   const grossProfit = revenue - costOfSales;
 
-  const entries = await prisma.expense.findMany({ where: { date: { gte: from, lt: to }, kind: { in: ["EXPENSE", "OTHER_INCOME"] } } });
+  const entries = await prisma.expense.findMany({ where: { date: { gte: from, lt: to }, kind: { in: ["EXPENSE", "REBATE", "OTHER_INCOME"] } } });
   const byCategory = (kind: string) => {
     const m = new Map<string, number>();
     for (const e of entries.filter((x) => x.kind === kind)) m.set(e.category, (m.get(e.category) ?? 0) + e.amountCents);
     return [...m.entries()].map(([category, amountCents]) => ({ category, amountCents })).sort((a, b) => b.amountCents - a.amountCents);
   };
   const expenses = byCategory("EXPENSE");
+  const rebates = byCategory("REBATE");
+  const totalRebates = sum(rebates.map((e) => e.amountCents));
   const otherIncome = byCategory("OTHER_INCOME");
   const totalExpenses = sum(expenses.map((e) => e.amountCents));
   const totalOtherIncome = sum(otherIncome.map((e) => e.amountCents));
   return {
     saleCount: sales.length, grossSales, discounts, vat, revenue, costOfSales, grossProfit,
-    expenses, totalExpenses, otherIncome, totalOtherIncome,
-    netProfit: grossProfit - totalExpenses + totalOtherIncome,
+    rebates, totalRebates, expenses, totalExpenses, otherIncome, totalOtherIncome,
+    netProfit: grossProfit + totalRebates - totalExpenses + totalOtherIncome,
   };
 }
 
@@ -82,7 +84,7 @@ export async function balanceSheet(asOf: Date, openingCashSetting: string) {
     prisma.supplierPayment.findMany({ where: { paidAt: { lt: asOf } }, select: { amountCents: true, purchaseOrderId: true } }),
     prisma.expense.findMany({ where: { date: { lt: asOf } } }),
   ]);
-  const signed = (e: { kind: string; amountCents: number }) => (isExpenseKind(e.kind) && MONEY_IN[e.kind] ? e.amountCents : -e.amountCents);
+  const signed = (e: { kind: string; amountCents: number }) => (MONEY_IN[e.kind] ? e.amountCents : -e.amountCents);
   const cash = openingCash + (customerPayments._sum.amountCents ?? 0) - sum(supplierPayments.map((p) => p.amountCents)) + sum(entries.map(signed));
 
   // Customers: invoices raised (incl. opening balances) less payments received, per customer.

@@ -38,12 +38,16 @@ export default async function IncomeStatementPage({ searchParams }: { searchPara
         </header>
         <table className="table fs-table">
           <tbody>
-            <Row label={`Sales (${is.saleCount} invoices, incl. VAT)`} value={is.grossSales} />
+            <Row label={`Sales (${is.saleCount} invoices)`} value={is.grossSales} />
             {is.discounts > 0 && <Row label="Less: discounts given" value={is.discounts} negative indent />}
-            <Row label="Less: VAT collected (owed to FIRS)" value={is.vat} negative indent />
+            {is.vat > 0 && <Row label="Less: VAT collected (owed to FIRS)" value={is.vat} negative indent />}
             <Row label="Revenue" value={is.revenue} strong />
             <Row label="Less: cost of cement sold" value={is.costOfSales} negative />
             <Row label="Gross profit" value={is.grossProfit} strong />
+            <tr><td colSpan={2} className="muted small">Rebates from manufacturers</td></tr>
+            {is.rebates.length === 0 && <tr><td colSpan={2} className="muted small" style={{ paddingLeft: "2rem" }}>None recorded</td></tr>}
+            {is.rebates.map((r) => <Row key={r.category} label={r.category} value={r.amountCents} indent />)}
+            {is.rebates.length > 0 && <Row label="Gross profit after rebates" value={is.grossProfit + is.totalRebates} strong />}
             <tr><td colSpan={2} className="muted small">Operating expenses</td></tr>
             {is.expenses.length === 0 && <tr><td colSpan={2} className="muted small" style={{ paddingLeft: "2rem" }}>None recorded</td></tr>}
             {is.expenses.map((e) => <Row key={e.category} label={e.category} value={e.amountCents} negative indent />)}
@@ -53,9 +57,10 @@ export default async function IncomeStatementPage({ searchParams }: { searchPara
           </tbody>
         </table>
         <p className="muted small">
-          Management accounts prepared from sales, purchase costs and expenses recorded in the system. Cost of cement sold uses
-          each product&apos;s purchase cost at the time of sale. Owner drawings and VAT remittances are not expenses and appear on
-          the balance sheet instead. Have your accountant review before filing.
+          Management accounts prepared from sales, purchase costs, rebates and expenses recorded in the system. Prices and costs include
+          the VAT charged by Lafarge and Dangote, which Trifold doesn&apos;t file itself. Cost of cement sold uses each product&apos;s
+          purchase cost at the time of sale. Owner capital and drawings aren&apos;t income or expenses and appear on the balance sheet
+          instead. Have your accountant review before filing.
         </p>
       </article>
     </>

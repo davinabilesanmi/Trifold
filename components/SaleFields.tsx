@@ -18,7 +18,6 @@ type Props = {
   stock: Record<string, Record<string, number>>;
   canOverridePrices: boolean;
   canGiveDiscounts: boolean;
-  vatRate: number;
   defaultCustomerId?: string;
   defaultLocationId?: string;
 };
@@ -26,7 +25,7 @@ type Props = {
 let nextKey = 1;
 const blankLine = (): Line => ({ key: nextKey++, productId: "", packId: "", quantity: "1", price: "" });
 
-export function SaleFields({ products, customers, locations, stock, canOverridePrices, canGiveDiscounts, vatRate, defaultCustomerId, defaultLocationId }: Props) {
+export function SaleFields({ products, customers, locations, stock, canOverridePrices, canGiveDiscounts, defaultCustomerId, defaultLocationId }: Props) {
   const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const [customerId, setCustomerId] = useState(defaultCustomerId ?? "");
   const customer = customers.find((c) => c.id === customerId);
@@ -56,7 +55,6 @@ export function SaleFields({ products, customers, locations, stock, canOverrideP
   const subtotal = lines.reduce((s, l) => s + (Number.parseInt(l.quantity, 10) || 0) * priceOf(l), 0);
   const discountCents = canGiveDiscounts ? parseMoneyToCents(discount) ?? 0 : 0;
   const total = Math.max(0, subtotal - discountCents);
-  const vat = vatRate ? Math.round((total * vatRate) / (100 + vatRate)) : 0;
   const paidCents = paid === null ? total : parseMoneyToCents(paid) ?? 0;
   const balance = total - paidCents;
 
@@ -172,9 +170,7 @@ export function SaleFields({ products, customers, locations, stock, canOverrideP
             {discountCents > 0 && (
               <tr><td colSpan={3} className="num"><strong>Total</strong></td><td className="num nowrap"><strong>{formatMoney(total)}</strong></td><td /></tr>
             )}
-            {vatRate > 0 && (
-              <tr><td colSpan={3} className="num muted small">Includes VAT at {vatRate}%</td><td className="num nowrap muted small">{formatMoney(vat)}</td><td /></tr>
-            )}
+
           </tbody>
         </table>
       </div>

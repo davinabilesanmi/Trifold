@@ -73,6 +73,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
         {paid !== sale.totalCents && sale.status === "COMPLETED" && (
           <div className="receipt-row receipt-total"><span>BALANCE DUE</span><span>{formatMoney(balance)}</span></div>
         )}
+        {settings.vatNote && <div className="receipt-footer" style={{ marginTop: 4 }}>{settings.vatNote}</div>}
         <hr />
         <div className="receipt-row"><span>Served by</span><span>{sale.user.name}</span></div>
         {settings.invoiceFooter && <p className="receipt-footer">{settings.invoiceFooter}</p>}

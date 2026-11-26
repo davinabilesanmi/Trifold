@@ -9,7 +9,6 @@ import { can } from "@/lib/permissions";
 import { firstIssue, formToObject, type FormState } from "@/lib/forms";
 import { parseMoneyToCents } from "@/lib/format";
 import { PAYMENT_METHODS } from "@/lib/money";
-import { getSettings, vatRateOf } from "@/lib/settings";
 import { cancelSale, createSale, recordSalePayment } from "@/lib/sales";
 import { StockError } from "@/lib/stock";
 import { canSeeSale, canUseLocation } from "@/lib/scope";
@@ -70,7 +69,6 @@ export async function createSaleAction(_prev: FormState, formData: FormData): Pr
       allowPriceOverride: can.overridePrices(user),
       discountCents,
       allowDiscount: can.giveDiscounts(user),
-      vatRate: vatRateOf(await getSettings()),
     }, user.id);
     saleId = sale.id;
   } catch (e) {

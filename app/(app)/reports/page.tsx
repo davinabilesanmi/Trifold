@@ -45,7 +45,7 @@ export default async function DailyReportPage({ searchParams }: { searchParams: 
 
       <section className="stats">
         <div className="stat"><div className="stat-label">Sales</div><div className="stat-value">{formatNumber(t.count)}</div></div>
-        <div className="stat"><div className="stat-label">Sales value (incl. VAT)</div><div className="stat-value">{formatMoney(t.net, { whole: true })}</div></div>
+        <div className="stat"><div className="stat-label">Sales value</div><div className="stat-value">{formatMoney(t.net, { whole: true })}</div></div>
         <div className="stat"><div className="stat-label">Money received</div><div className="stat-value">{formatMoney(t.received, { whole: true })}</div></div>
         <div className={t.creditGiven ? "stat stat-warn" : "stat"}><div className="stat-label">Sold on credit</div><div className="stat-value">{formatMoney(t.creditGiven, { whole: true })}</div></div>
         <div className="stat"><div className="stat-label">Bags sold</div><div className="stat-value">{formatNumber(report.byProduct.reduce((s, p) => s + p.units, 0))}</div></div>
@@ -97,7 +97,7 @@ export default async function DailyReportPage({ searchParams }: { searchParams: 
                     </tr>
                   ))}
                   {t.discounts > 0 && <tr><td colSpan={2} className="num">Less discounts</td><td className="num nowrap">−{formatMoney(t.discounts)}</td></tr>}
-                  <tr><td colSpan={2} className="num"><strong>Total (incl. VAT {formatMoney(t.vat)})</strong></td><td className="num nowrap"><strong>{formatMoney(t.net)}</strong></td></tr>
+                  <tr><td colSpan={2} className="num"><strong>Total{t.vat > 0 ? ` (incl. VAT ${formatMoney(t.vat)})` : ""}</strong></td><td className="num nowrap"><strong>{formatMoney(t.net)}</strong></td></tr>
                 </tbody>
               </table>
             </div>

@@ -37,15 +37,15 @@ async function build(user: CurrentUser, report: string, from?: string, to?: stri
         include: { customer: true, location: true, user: true, payments: true },
       });
       return toCsv(
-        ["Invoice", "Type", "Date", "Status", "Customer", "Price list", "Location", "Discount (NGN)", "Total incl. VAT (NGN)", "VAT (NGN)", "Paid (NGN)", "Balance (NGN)", "Sold by"],
+        ["Invoice", "Type", "Date", "Status", "Customer", "Price list", "Location", "Discount (NGN)", "Total (NGN)", "Paid (NGN)", "Balance (NGN)", "Sold by"],
         sales.map((s) => [s.number, s.kind === "OPENING_BALANCE" ? "Opening balance" : "Sale", lagos(s.createdAt), s.status, s.customer?.name ?? "Walk-in", s.priceLevel, s.location?.code ?? "Opening balance",
-          naira(s.discountCents), naira(s.totalCents), naira(s.vatCents), naira(s.payments.reduce((t, p) => t + p.amountCents, 0)), naira(saleBalance(s)), s.user.name]),
+          naira(s.discountCents), naira(s.totalCents), naira(s.payments.reduce((t, p) => t + p.amountCents, 0)), naira(saleBalance(s)), s.user.name]),
       );
     }
     case "sales-by-product": {
       const { products } = await salesSummary(createdAt, locs);
       return toCsv(
-        ["SKU", "Product", "Quantity sold", "Revenue incl. VAT (NGN)", ...(money ? ["Cost (NGN)", "Gross profit (NGN)"] : [])],
+        ["SKU", "Product", "Quantity sold", "Revenue (NGN)", ...(money ? ["Cost (NGN)", "Gross profit (NGN)"] : [])],
         products.map((p) => [p.product.sku, p.product.name, p.quantity, naira(p.revenue), ...(money ? [naira(p.cost), naira(p.revenue - p.cost)] : [])]),
       );
     }

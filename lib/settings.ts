@@ -9,20 +9,14 @@ export const SETTING_FIELDS = [
   { key: "bankDetails", label: "Bank details for payment", defaultValue: "", multiline: true,
     hint: "Printed on invoices, e.g. bank name, account name and account number." },
   { key: "invoiceFooter", label: "Invoice footer", defaultValue: "Thank you for your business.", multiline: true },
-  { key: "vatRate", label: "VAT rate (%)", defaultValue: "7.5",
-    hint: "Selling prices already include VAT. Invoices and receipts show how much of each total is VAT. Use 0 to hide VAT." },
+  { key: "vatNote", label: "VAT note on invoices and receipts", defaultValue: "All prices include VAT.",
+    hint: "VAT is charged by the manufacturers (Lafarge, Dangote) and included in prices; Trifold doesn't add or file VAT itself." },
   { key: "openingCash", label: "Cash and bank balance when you started using the system (₦)", defaultValue: "0",
     hint: "The starting point for the cash figure on the balance sheet." },
 ] as const;
 
 export type SettingKey = (typeof SETTING_FIELDS)[number]["key"];
 export type Settings = Record<SettingKey, string>;
-
-/** VAT rate as a number, e.g. 7.5. */
-export function vatRateOf(settings: Settings) {
-  const n = Number(settings.vatRate);
-  return Number.isFinite(n) && n >= 0 && n <= 50 ? n : 0;
-}
 
 export async function getSettings(): Promise<Settings> {
   const rows = await prisma.setting.findMany();

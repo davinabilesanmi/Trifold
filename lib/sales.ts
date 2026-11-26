@@ -19,7 +19,10 @@ export type SaleInput = {
   /** Discount off the whole sale, in kobo. Needs allowDiscount. */
   discountCents?: number;
   allowDiscount?: boolean;
-  /** VAT rate (%) contained in the prices, e.g. 7.5. Prices are VAT-inclusive. */
+  /**
+   * VAT rate (%) Trifold itself accounts for on this sale. Trifold isn't VAT-registered (the VAT in its
+   * prices is charged by the manufacturers), so the app leaves this at 0; kept for a future switch.
+   */
   vatRate?: number;
 };
 

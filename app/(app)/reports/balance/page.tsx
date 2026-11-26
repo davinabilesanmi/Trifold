@@ -53,7 +53,7 @@ export default async function BalanceSheetPage({ searchParams }: { searchParams:
             <Row label="Total assets" value={bs.totalAssets} strong />
             <tr><td colSpan={2}><strong>What the business owes</strong></td></tr>
             <Row label="Owed to suppliers" value={bs.payables} indent />
-            <Row label="VAT owed to FIRS" value={bs.vatPayable} indent />
+            {bs.vatPayable !== 0 && <Row label="VAT owed to FIRS" value={bs.vatPayable} indent />}
             {bs.customerCredits > 0 && <Row label="Customer credit balances" value={bs.customerCredits} indent />}
             <Row label="Total liabilities" value={bs.totalLiabilities} strong />
             <Row label="Net assets (owner's equity)" value={bs.equity} strong />
@@ -65,8 +65,8 @@ export default async function BalanceSheetPage({ searchParams }: { searchParams:
         </table>
         <p className="muted small">
           Management balance sheet built from what is recorded in the system: the opening cash in Settings, payments received and made,
-          expenses, stock (valued at current cost) and money owed both ways. Fixed assets such as trucks, buildings and loans aren&apos;t
-          tracked yet. Have your accountant review before filing.
+          rebates, expenses, stock (valued at current cost) and money owed both ways. Trifold hires trucks rather than owning them and has
+          no loans, so there are no fixed assets or borrowings. Have your accountant review before filing.
         </p>
       </article>
     </>

@@ -25,8 +25,7 @@ async function main() {
   await prisma.setting.createMany({ data: [
     { key: "businessName", value: "Trifold Limited" },
     { key: "address", value: "Cement distributors: Dangote and Lafarge" },
-    { key: "openingCash", value: "30000000" },
-    { key: "vatRate", value: "7.5" },
+    { key: "openingCash", value: "50000000" },
   ] });
 
   const depot = await prisma.location.create({ data: { code: "DEPOT", name: "Main Depot" } });
@@ -49,12 +48,13 @@ async function main() {
     users[role + (locs[0] === lekki.id ? "_LKI" : "")] = u.id;
   }
 
-  // Cement in 50 kg bags, prices VAT-inclusive. A trailer load is 600 bags (30 tonnes).
+  // Cement in 50 kg bags. Prices and costs include the VAT charged by the manufacturers.
+  // A trailer load is 600 bags (30 tonnes).
   const catalogue = [
-    { sku: "DAN-3X-425", name: "Dangote 3X Cement 42.5R, 50kg", category: "Dangote", cost: 8200, retail: 10300, wholesale: 9800, reorder: 400 },
-    { sku: "DAN-FAL-325", name: "Dangote Falcon Cement 32.5R, 50kg", category: "Dangote", cost: 7800, retail: 9800, wholesale: 9300, reorder: 300 },
-    { sku: "LAF-ELE-425", name: "Lafarge Elephant Cement 42.5, 50kg", category: "Lafarge", cost: 8300, retail: 10500, wholesale: 10000, reorder: 400 },
-    { sku: "LAF-SUP-425", name: "Lafarge Supaset Cement 42.5R, 50kg", category: "Lafarge", cost: 8700, retail: 11000, wholesale: 10400, reorder: 200 },
+    { sku: "DAN-3X-425", name: "Dangote 3X Cement 42.5R, 50kg", category: "Dangote", cost: 12000, retail: 13300, wholesale: 12800, reorder: 400 },
+    { sku: "DAN-FAL-325", name: "Dangote Falcon Cement 32.5R, 50kg", category: "Dangote", cost: 11500, retail: 12800, wholesale: 12300, reorder: 300 },
+    { sku: "LAF-ELE-425", name: "Lafarge Elephant Cement 42.5, 50kg", category: "Lafarge", cost: 12500, retail: 13800, wholesale: 13300, reorder: 400 },
+    { sku: "LAF-SUP-425", name: "Lafarge Supaset Cement 42.5R, 50kg", category: "Lafarge", cost: 13000, retail: 14500, wholesale: 13900, reorder: 200 },
   ];
   const products: Record<string, string> = {};
   for (const p of catalogue) {
@@ -79,8 +79,8 @@ async function main() {
     await receivePurchaseOrder(prisma, po.id, poLines.map((l) => ({ lineId: l.id, quantity: l.quantity })), owner.id);
     await paySupplier(prisma, po.id, { amountCents: N(paid), method: "TRANSFER", reference: "Bank transfer" }, owner.id);
   }
-  await deliver(dangote.id, [["DAN-3X-425", 1800], ["DAN-FAL-325", 600]], 15_000_000);
-  await deliver(lafarge.id, [["LAF-ELE-425", 1200], ["LAF-SUP-425", 600]], 10_000_000);
+  await deliver(dangote.id, [["DAN-3X-425", 1800], ["DAN-FAL-325", 600]], 20_000_000);
+  await deliver(lafarge.id, [["LAF-ELE-425", 1200], ["LAF-SUP-425", 600]], 15_000_000);
 
   for (const [loc, sku, bags] of [[ikeja, "DAN-3X-425", 400], [ikeja, "LAF-ELE-425", 300], [lekki, "DAN-3X-425", 300], [lekki, "LAF-SUP-425", 200]] as const) {
     await recordMovement(prisma, { type: "TRANSFER", productId: products[sku], fromLocationId: depot.id, toLocationId: loc.id, quantity: bags, reference: "Stock to outlet" }, owner.id);
@@ -91,23 +91,20 @@ async function main() {
   await prisma.customer.create({ data: { name: "Mrs. Bello", type: "RETAIL", phone: "0807 000 1003" } });
   await createCustomerOpeningBalance(prisma, blocks.id, N(1_250_000), "Balance from old ledger", owner.id);
 
-  const vatRate = 7.5;
-  await createSale(prisma, { customerId: builders.id, locationId: depot.id, priceLevel: "WHOLESALE", vatRate,
-    lines: [{ productId: products["DAN-3X-425"], packId: (await prisma.productPack.findFirstOrThrow({ where: { productId: products["DAN-3X-425"] } })).id, quantity: 1 }],
+  const price = (sku: string, level: "retail" | "wholesale") => N(catalogue.find((c) => c.sku === sku)![level]);
+  await createSale(prisma, { customerId: builders.id, locationId: depot.id, priceLevel: "WHOLESALE",     lines: [{ productId: products["DAN-3X-425"], packId: (await prisma.productPack.findFirstOrThrow({ where: { productId: products["DAN-3X-425"] } })).id, quantity: 1 }],
     discountCents: N(60_000), allowDiscount: true,
-    payment: { amountCents: N(3_000_000), method: "TRANSFER", reference: "Part payment" } }, users.GM);
-  await createSale(prisma, { customerId: blocks.id, locationId: depot.id, priceLevel: "WHOLESALE", vatRate,
-    lines: [{ productId: products["DAN-FAL-325"], quantity: 150 }, { productId: products["LAF-ELE-425"], quantity: 100 }],
-    payment: { amountCents: N(2_395_000), method: "TRANSFER" } }, users.SALES_REP);
-  await createSale(prisma, { locationId: ikeja.id, priceLevel: "RETAIL", vatRate,
-    lines: [{ productId: products["DAN-3X-425"], quantity: 40 }, { productId: products["LAF-ELE-425"], quantity: 20 }],
-    payment: { amountCents: N(40 * 10300 + 20 * 10500), method: "TRANSFER" } }, users.OUTLET_MANAGER);
-  await createSale(prisma, { locationId: lekki.id, priceLevel: "RETAIL", vatRate,
-    lines: [{ productId: products["LAF-SUP-425"], quantity: 25 }],
-    payment: { amountCents: N(25 * 11000), method: "POS" } }, users.OUTLET_MANAGER_LKI);
+    payment: { amountCents: N(4_000_000), method: "TRANSFER", reference: "Part payment" } }, users.GM);
+  await createSale(prisma, { customerId: blocks.id, locationId: depot.id, priceLevel: "WHOLESALE",     lines: [{ productId: products["DAN-FAL-325"], quantity: 150 }, { productId: products["LAF-ELE-425"], quantity: 100 }],
+    payment: { amountCents: 150 * price("DAN-FAL-325", "wholesale") + 100 * price("LAF-ELE-425", "wholesale"), method: "TRANSFER" } }, users.SALES_REP);
+  await createSale(prisma, { locationId: ikeja.id, priceLevel: "RETAIL",     lines: [{ productId: products["DAN-3X-425"], quantity: 40 }, { productId: products["LAF-ELE-425"], quantity: 20 }],
+    payment: { amountCents: 40 * price("DAN-3X-425", "retail") + 20 * price("LAF-ELE-425", "retail"), method: "TRANSFER" } }, users.OUTLET_MANAGER);
+  await createSale(prisma, { locationId: lekki.id, priceLevel: "RETAIL",     lines: [{ productId: products["LAF-SUP-425"], quantity: 25 }],
+    payment: { amountCents: 25 * price("LAF-SUP-425", "retail"), method: "POS" } }, users.OUTLET_MANAGER_LKI);
 
   await prisma.expense.createMany({ data: [
-    { kind: "EXPENSE", category: "Haulage and transport", amountCents: N(450_000), date: new Date(), userId: owner.id, note: "Depot to outlets" },
+    { kind: "EXPENSE", category: "Truck hire (haulage)", amountCents: N(450_000), date: new Date(), userId: owner.id, note: "Depot to outlets" },
+    { kind: "REBATE", category: "Lafarge Africa Plc", amountCents: N(540_000), date: new Date(), userId: owner.id, note: "October volume rebate" },
     { kind: "EXPENSE", category: "Loading and offloading", amountCents: N(120_000), date: new Date(), userId: owner.id },
     { kind: "EXPENSE", category: "Diesel and fuel", amountCents: N(85_000), date: new Date(), userId: owner.id },
   ] });
