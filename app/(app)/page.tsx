@@ -9,6 +9,7 @@ import { formatMoney, formatNumber } from "@/lib/format";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/Badges";
 import { SalesTable, saleRowInclude } from "@/components/SalesTable";
+import { isRestricted, saleWhere } from "@/lib/scope";
 
 export const metadata = { title: "Dashboard" };
 
@@ -17,14 +18,18 @@ const sum = (m: Map<string, number>) => [...m.values()].reduce((s, v) => s + Mat
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ denied?: string }> }) {
   const user = await requireUser();
   const { denied } = await searchParams;
-  const manager = can.viewReports(user);
+  const restricted = isRestricted(user);
+  const manager = can.viewReports(user) && !restricted;
+  const financials = can.viewFinancials(user);
+  const mine = saleWhere(user);
+  const scopedLoc = restricted ? { locationId: { in: user.locationIds } } : {};
   const todayStart = startOfDay(todayInLagos());
 
   const [products, todaySales, recentSales, openOrders, receivable, payable] = await Promise.all([
     productsWithTotals({ active: true }),
-    prisma.sale.aggregate({ where: { status: "COMPLETED", kind: "SALE", createdAt: { gte: todayStart } }, _sum: { totalCents: true }, _count: true }),
-    prisma.sale.findMany({ orderBy: { createdAt: "desc" }, take: 8, include: saleRowInclude }),
-    prisma.purchaseOrder.count({ where: { status: { in: ["ORDERED", "PARTIAL"] } } }),
+    prisma.sale.aggregate({ where: { AND: [mine, { status: "COMPLETED", kind: "SALE", createdAt: { gte: todayStart } }] }, _sum: { totalCents: true }, _count: true }),
+    prisma.sale.findMany({ where: mine, orderBy: { createdAt: "desc" }, take: 8, include: saleRowInclude }),
+    prisma.purchaseOrder.count({ where: { status: { in: ["ORDERED", "PARTIAL"] }, ...scopedLoc } }),
     manager ? customerBalances().then(sum) : Promise.resolve(0),
     manager ? supplierBalances().then(sum) : Promise.resolve(0),
   ]);
@@ -46,7 +51,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
       <section className="stats">
         <Link href={`/sales?from=${todayInLagos()}`} className="stat stat-link">
-          <div className="stat-label">Sales today ({todaySales._count})</div>
+          <div className="stat-label">{can.viewAllSales(user) ? "Sales today" : "My sales today"} ({todaySales._count})</div>
           <div className="stat-value">{formatMoney(todaySales._sum.totalCents ?? 0, { whole: true })}</div>
         </Link>
         {manager && (
@@ -57,21 +62,23 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             <Link href="/suppliers" className="stat stat-link">
               <div className="stat-label">Trifold owes suppliers</div><div className="stat-value">{formatMoney(payable, { whole: true })}</div>
             </Link>
-            <div className="stat"><div className="stat-label">Stock value (at cost)</div><div className="stat-value">{formatMoney(stockValue, { whole: true })}</div></div>
+            {financials && <div className="stat"><div className="stat-label">Stock value (at cost)</div><div className="stat-value">{formatMoney(stockValue, { whole: true })}</div></div>}
           </>
         )}
         <Link href="/products?status=attention" className={attention.length ? "stat stat-link stat-warn" : "stat stat-link"}>
           <div className="stat-label">Need reordering</div><div className="stat-value">{formatNumber(attention.length)}</div>
         </Link>
-        <Link href="/purchases" className="stat stat-link">
-          <div className="stat-label">Deliveries expected</div><div className="stat-value">{formatNumber(openOrders)}</div>
-        </Link>
+        {(can.receivePurchases(user) || can.managePurchasing(user)) && (
+          <Link href="/purchases" className="stat stat-link">
+            <div className="stat-label">Deliveries expected</div><div className="stat-value">{formatNumber(openOrders)}</div>
+          </Link>
+        )}
       </section>
 
       <div className="stack">
         <section className="card">
           <div className="section-head">
-            <h2>Recent sales</h2>
+            <h2>{can.viewAllSales(user) ? "Recent sales" : "My recent sales"}</h2>
             <Link href="/sales" className="small">View all</Link>
           </div>
           <SalesTable sales={recentSales} />

@@ -5,9 +5,11 @@ import { customerBalances, supplierBalances } from "./balances";
 
 type Range = Prisma.DateTimeFilter | undefined;
 
-export async function salesSummary(createdAt: Range) {
+/** locationIds limits to those locations (empty = whole company). */
+export async function salesSummary(createdAt: Range, locationIds: string[] = []) {
+  const loc = locationIds.length ? { locationId: { in: locationIds } } : {};
   const lines = await prisma.saleLine.findMany({
-    where: { sale: { status: "COMPLETED", ...(createdAt ? { createdAt } : {}) } },
+    where: { sale: { status: "COMPLETED", ...loc, ...(createdAt ? { createdAt } : {}) } },
     include: { product: { select: { id: true, name: true, sku: true, unit: true } } },
   });
   const byProduct = new Map<string, { product: (typeof lines)[number]["product"]; quantity: number; revenue: number; cost: number }>();
@@ -23,8 +25,8 @@ export async function salesSummary(createdAt: Range) {
   const cost = products.reduce((s, p) => s + p.cost, 0);
 
   const [saleCount, payments] = await Promise.all([
-    prisma.sale.count({ where: { status: "COMPLETED", kind: "SALE", ...(createdAt ? { createdAt } : {}) } }),
-    prisma.payment.groupBy({ by: ["method"], where: createdAt ? { paidAt: createdAt } : {}, _sum: { amountCents: true } }),
+    prisma.sale.count({ where: { status: "COMPLETED", kind: "SALE", ...loc, ...(createdAt ? { createdAt } : {}) } }),
+    prisma.payment.groupBy({ by: ["method"], where: { ...(createdAt ? { paidAt: createdAt } : {}), ...(locationIds.length ? { sale: loc } : {}) }, _sum: { amountCents: true } }),
   ]);
   return {
     saleCount, revenue, cost, profit: revenue - cost, products,
@@ -32,11 +34,16 @@ export async function salesSummary(createdAt: Range) {
   };
 }
 
-export async function stockValuation() {
+export async function stockValuation(locationIds: string[] = []) {
   const products = await prisma.product.findMany({
     where: { active: true },
     orderBy: { name: "asc" },
-    include: { stock: { where: { location: { active: true } }, include: { location: { select: { code: true } } } } },
+    include: {
+      stock: {
+        where: { location: { active: true }, ...(locationIds.length ? { locationId: { in: locationIds } } : {}) },
+        include: { location: { select: { code: true } } },
+      },
+    },
   });
   return products.map((p) => {
     const quantity = p.stock.reduce((s, x) => s + x.quantity, 0);

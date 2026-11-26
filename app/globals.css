@@ -193,7 +193,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 .auth-card .brand { padding: 0; margin-bottom: 1.25rem; }
 
 /* Inputs for dates */
-input[type="date"] { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.45rem 0.6rem; }
+input[type="date"], input[type="month"] { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.45rem 0.6rem; }
 
 /* Sale form */
 .sale-lines td { vertical-align: middle; }
@@ -256,3 +256,11 @@ input[type="date"] { font: inherit; color: var(--text); background: var(--surfac
   .receipt-page { padding: 0; }
   .receipt { border: 0; width: 80mm; }
 }
+
+/* Financial statements */
+.fs { max-width: 760px; }
+.fs-head { margin-bottom: 1rem; }
+.fs-head h2 { margin: 0.25rem 0 0; }
+.fs-table td { border-bottom: 1px solid var(--border); }
+.fs-total td { font-weight: 700; border-top: 2px solid var(--text); }
+.card.fs .fs-table { margin: 0 0 1rem; }

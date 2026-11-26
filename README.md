@@ -6,19 +6,33 @@ control who can do what.
 
 ## Features
 
-- **Sales and invoices**: sell from any location at retail or wholesale prices. Each sale gets an invoice number (INV-000001) and a printable invoice with Trifold's details and bank account.
-- **Credit and payments**: sales can be paid in full, part-paid or on credit (credit needs a named customer). Take later payments against an invoice and see who owes what. Cancelling a sale returns the stock and records a refund.
-- **Customers**: marked retail or wholesale, which sets the prices they pay. Each customer shows their invoices and balance.
-- **Suppliers and purchase orders**: order stock (PO-000001) and receive deliveries in full or in parts. Receiving adds stock and updates the product's cost. Pay suppliers in advance or after delivery and track what Trifold owes.
-- **Products**: SKU, category, unit, cost, and retail and wholesale prices, plus a reorder level that flags *Low* or *Out* across all locations.
-- **Locations** (set up only by people with that responsibility, e.g. the MD) and **stock movements**: receive, issue, transfer and adjust (to a physical count), each logged with who, when and why. Stock can never go negative, even under simultaneous sales.
-- **Reports**: revenue, cost of goods sold and gross profit for any date range; sales by product; money received by payment method; stock value; customers who owe and suppliers owed. Every report downloads as a CSV file that opens in Excel.
-- **Dashboard**: today's sales, money owed both ways, stock value, reorder alerts and expected deliveries.
-- **Staff responsibilities**: the admin ticks exactly what each person may do (make sales, take payments, change prices, cancel sales, move stock, set prices and pack sizes, set up locations, receive deliveries, manage buying, enter opening balances, see reports, manage staff, change settings). **Admin**, **Manager** and **Staff** are presets to start from; any other mix shows as *Custom*. Menus only show what each person can use, and an admin can't remove their own access to staff accounts.
-- **Pack sizes**: on any product, add packs such as *Carton = 12 bottles* or *Drum = 200 litres*, each with its own retail and wholesale price. Sales and purchase orders can use single units or packs. Stock is always counted in single units.
-- **Opening balances**: record what a customer owed, or what Trifold owed a supplier, before using the system. It appears as a statement (OB-000001) that normal payments clear, and is kept out of sales revenue.
-- Products, locations, customers and suppliers are **archived** rather than deleted, so history is kept.
-- Amounts are in **naira**. Money is stored as whole kobo, so totals never suffer rounding errors.
+Built for Trifold Limited, a distributor of Dangote and Lafarge cement with a depot and retail outlets.
+
+- **Sales**: sell from the depot or an outlet at retail or wholesale prices. Prices **include VAT**, and the VAT inside each total is shown on the invoice and receipt. **Bank transfer** is the default payment. Sales can be paid in full, part-paid or put on credit for a named customer.
+- **Discounts**: only people with the *give discounts* responsibility (management) see the discount box.
+- **Invoices and receipts**: a printable A4 invoice with Trifold's details and bank account, plus a narrow till receipt for 80 mm counter printers.
+- **Pack sizes**: e.g. *Trailer = 600 bags*, with their own prices. Stock is always counted in bags.
+- **Customers and suppliers**, with balances owed both ways and **opening balances** for money owed before the system started.
+- **Purchase orders** from Dangote and Lafarge: receive deliveries in parts, pay in advance or after, and the product cost updates automatically.
+- **Locations and stock movements**: receive, issue, transfer between depot and outlets, and adjust after a count. Stock can never go negative.
+- **Expenses and other money**: running costs (haulage, loading, diesel, salaries and so on), other income, owner capital and drawings, and VAT paid to FIRS.
+- **Reports**:
+  - **Daily report**: sales, money received, credit given, bags sold, sales by product, rep and location, plus a **stock report** per location (opening, delivered, transfers in and out, sold, other, closing).
+  - **Sales and stock by period**, with Excel (CSV) downloads.
+  - **Monthly income statement**: sales less discounts and VAT, cost of cement sold, expenses and net profit.
+  - **Monthly balance sheet**: cash and bank, stock, money owed both ways, VAT owed to FIRS and owner's equity.
+- **Staff and responsibilities**: the admin ticks what each person may do and which outlet(s) they work at. Presets:
+
+  | Preset | Typical access |
+  |---|---|
+  | Owner | Everything, including financial statements, staff and settings |
+  | Systems admin | Staff accounts, locations, products and settings |
+  | General manager | Overall view of sales, stock, buying, discounts and daily/period reports. No income statement or balance sheet |
+  | Outlet manager | Tied to their outlet: sales, discounts, deliveries, stock and that outlet's reports |
+  | Sales rep / marketer | Sales, payments and customers. Sees only their own sales |
+
+  Menus only show what each person can use. Anyone tied to an outlet only sells, moves stock and sees reports for that outlet.
+- All times are shown in Lagos time and amounts in naira. Money is stored as whole kobo, so totals never suffer rounding errors.
 
 ## Tech stack
 
@@ -40,8 +54,9 @@ npm run dev                 # http://localhost:3000
 Sign in with `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` from `.env`. The default
 is `admin@trifold.local` / `ChangeMe123!`. **Change it** on the *Your account* page,
 then fill in Trifold's address and bank details under *Settings*.
-The seed adds a sample engine-oil catalogue, suppliers, customers, a purchase order and sales.
-Set `SEED_DEMO_DATA="false"` to start with only the admin account.
+The seed adds sample cement data (Dangote and Lafarge products, a depot, two outlets, deliveries, sales and expenses)
+and one demo account per role: `gm@`, `sysadmin@`, `ikeja@`, `lekki@` and `rep@trifold.local`, all with the same password.
+**For real use, set `SEED_DEMO_DATA="false"`** so only the owner account is created.
 
 ## Scripts
 
@@ -70,6 +85,8 @@ lib/
   sales.ts               Sales, customer payments and cancellations
   purchasing.ts          Purchase orders, receiving and supplier payments
   reports.ts, csv.ts     Report queries and CSV export
+  daily.ts, financials.ts  Daily report, income statement and balance sheet
+  scope.ts               Outlet and own-sales restrictions
   auth.ts                Sessions (hashed tokens in the DB, httpOnly cookie) and passwords
   permissions.ts         Roles and permission checks
   actions/               Server actions for each area

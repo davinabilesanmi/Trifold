@@ -25,9 +25,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       ],
     },
     {
-      label: "Admin",
+      label: "Money",
       items: [
         ...show(can.viewReports(user), { href: "/reports", label: "Reports" }),
+        ...show(can.manageExpenses(user) || can.viewFinancials(user), { href: "/expenses", label: "Expenses" }),
+      ],
+    },
+    {
+      label: "Admin",
+      items: [
         ...show(can.manageUsers(user), { href: "/users", label: "Staff" }),
         ...show(can.manageSettings(user), { href: "/settings", label: "Settings" }),
       ],

@@ -13,8 +13,9 @@ export function formatNumber(n: number) {
   return new Intl.NumberFormat(LOCALE).format(n);
 }
 
+/** Always shown in Lagos time, whatever time zone the server runs in. */
 export function formatDateTime(d: Date) {
-  return new Intl.DateTimeFormat(LOCALE, { dateStyle: "medium", timeStyle: "short" }).format(d);
+  return new Intl.DateTimeFormat(LOCALE, { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Lagos" }).format(d);
 }
 
 /** Parses a user-entered price like "12.50" into integer cents. */

@@ -20,3 +20,12 @@ export function parseDateRange(from?: string, to?: string) {
     : undefined;
   return { from: f, to: t, createdAt };
 }
+
+/** A calendar month in Lagos from "YYYY-MM" (defaults to this month). */
+export function monthRange(month?: string) {
+  const m = month && /^\d{4}-(0[1-9]|1[0-2])$/.test(month) ? month : todayInLagos().slice(0, 7);
+  const [y, mo] = m.split("-").map(Number);
+  const next = mo === 12 ? `${y + 1}-01` : `${y}-${String(mo + 1).padStart(2, "0")}`;
+  const label = new Intl.DateTimeFormat("en-NG", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(y, mo - 1, 1)));
+  return { month: m, start: startOfDay(`${m}-01`), end: startOfDay(`${next}-01`), label };
+}

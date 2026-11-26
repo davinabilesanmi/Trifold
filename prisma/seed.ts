@@ -1,9 +1,9 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { recordMovement } from "../lib/stock";
-import { createSale } from "../lib/sales";
+import { createCustomerOpeningBalance, createSale } from "../lib/sales";
 import { createPurchaseOrder, paySupplier, receivePurchaseOrder } from "../lib/purchasing";
-import { ROLE_PRESETS, serializePermissions } from "../lib/permissions";
+import { ROLE_PRESETS, serializePermissions, type Role } from "../lib/permissions";
 
 const prisma = new PrismaClient();
 const N = (naira: number) => naira * 100; // naira -> kobo
@@ -11,73 +11,107 @@ const N = (naira: number) => naira * 100; // naira -> kobo
 async function main() {
   const email = (process.env.SEED_ADMIN_EMAIL ?? "admin@trifold.local").toLowerCase();
   const password = process.env.SEED_ADMIN_PASSWORD ?? "ChangeMe123!";
+  const passwordHash = await bcrypt.hash(password, 10);
 
-  const admin = await prisma.user.upsert({
+  const owner = await prisma.user.upsert({
     where: { email },
     update: {},
-    create: {
-      email, name: "Trifold Admin", jobTitle: "Managing Director", role: "OWNER",
-      permissions: serializePermissions(ROLE_PRESETS.OWNER), passwordHash: await bcrypt.hash(password, 10),
-    },
+    create: { email, name: "Trifold Owner", jobTitle: "Owner / MD", role: "OWNER", permissions: serializePermissions(ROLE_PRESETS.OWNER), passwordHash },
   });
-  console.log(`Admin account: ${email}`);
+  console.log(`Owner account: ${email}`);
 
   if (process.env.SEED_DEMO_DATA === "false" || (await prisma.product.count()) > 0) return;
 
-  const warehouse = await prisma.location.create({ data: { code: "WH-MAIN", name: "Main Warehouse" } });
-  const shop = await prisma.location.create({ data: { code: "SHOP-01", name: "Shop" } });
+  await prisma.setting.createMany({ data: [
+    { key: "businessName", value: "Trifold Limited" },
+    { key: "address", value: "Cement distributors: Dangote and Lafarge" },
+    { key: "openingCash", value: "30000000" },
+    { key: "vatRate", value: "7.5" },
+  ] });
 
+  const depot = await prisma.location.create({ data: { code: "DEPOT", name: "Main Depot" } });
+  const ikeja = await prisma.location.create({ data: { code: "IKJ", name: "Ikeja Outlet" } });
+  const lekki = await prisma.location.create({ data: { code: "LKI", name: "Lekki Outlet" } });
+
+  // Demo staff, one per preset, sharing the owner's demo password.
+  const staff: [string, string, string, Role, string[]][] = [
+    ["gm@trifold.local", "Grace Okafor", "General Manager", "GM", []],
+    ["sysadmin@trifold.local", "Tunde Bakare", "Systems Admin", "SYSADMIN", []],
+    ["ikeja@trifold.local", "Chidi Eze", "Ikeja Outlet Manager", "OUTLET_MANAGER", [ikeja.id]],
+    ["lekki@trifold.local", "Amina Yusuf", "Lekki Outlet Manager", "OUTLET_MANAGER", [lekki.id]],
+    ["rep@trifold.local", "Femi Adeyemi", "Sales Rep", "SALES_REP", []],
+  ];
+  const users: Record<string, string> = {};
+  for (const [mail, name, jobTitle, role, locs] of staff) {
+    const u = await prisma.user.create({
+      data: { email: mail, name, jobTitle, role, permissions: serializePermissions(ROLE_PRESETS[role]), locationIds: locs.join(","), passwordHash },
+    });
+    users[role + (locs[0] === lekki.id ? "_LKI" : "")] = u.id;
+  }
+
+  // Cement in 50 kg bags, prices VAT-inclusive. A trailer load is 600 bags (30 tonnes).
   const catalogue = [
-    { sku: "EO-2050-4L", name: "Engine Oil 20W-50, 4 litres", category: "Engine oil", unit: "gallon", cost: 17000, retail: 22000, wholesale: 20000, reorder: 20 },
-    { sku: "EO-2050-1L", name: "Engine Oil 20W-50, 1 litre", category: "Engine oil", unit: "bottle", cost: 4600, retail: 6000, wholesale: 5400, reorder: 48 },
-    { sku: "EO-1540-4L", name: "Engine Oil 15W-40 Diesel, 4 litres", category: "Engine oil", unit: "gallon", cost: 19500, retail: 25000, wholesale: 23000, reorder: 12 },
-    { sku: "EO-530-4L", name: "Engine Oil 5W-30 Synthetic, 4 litres", category: "Engine oil", unit: "gallon", cost: 31000, retail: 39000, wholesale: 36000, reorder: 10 },
-    { sku: "ATF-1L", name: "Automatic Transmission Fluid, 1 litre", category: "Transmission", unit: "bottle", cost: 5200, retail: 7000, wholesale: 6300, reorder: 24 },
-    { sku: "BF-500", name: "Brake Fluid DOT 4, 500 ml", category: "Brake fluid", unit: "bottle", cost: 2800, retail: 4000, wholesale: 3500, reorder: 24 },
-    { sku: "HYD-25L", name: "Hydraulic Oil 68, 25 litres", category: "Industrial", unit: "keg", cost: 78000, retail: 95000, wholesale: 88000, reorder: 4 },
-    { sku: "GR-500", name: "Multipurpose Grease, 500 g", category: "Grease", unit: "tin", cost: 2500, retail: 3500, wholesale: 3100, reorder: 30 },
+    { sku: "DAN-3X-425", name: "Dangote 3X Cement 42.5R, 50kg", category: "Dangote", cost: 8200, retail: 10300, wholesale: 9800, reorder: 400 },
+    { sku: "DAN-FAL-325", name: "Dangote Falcon Cement 32.5R, 50kg", category: "Dangote", cost: 7800, retail: 9800, wholesale: 9300, reorder: 300 },
+    { sku: "LAF-ELE-425", name: "Lafarge Elephant Cement 42.5, 50kg", category: "Lafarge", cost: 8300, retail: 10500, wholesale: 10000, reorder: 400 },
+    { sku: "LAF-SUP-425", name: "Lafarge Supaset Cement 42.5R, 50kg", category: "Lafarge", cost: 8700, retail: 11000, wholesale: 10400, reorder: 200 },
   ];
   const products: Record<string, string> = {};
   for (const p of catalogue) {
     const created = await prisma.product.create({
-      data: { sku: p.sku, name: p.name, category: p.category, unit: p.unit, costCents: N(p.cost),
-        priceRetailCents: N(p.retail), priceWholesaleCents: N(p.wholesale), reorderLevel: p.reorder },
+      data: { sku: p.sku, name: p.name, category: p.category, unit: "bag", costCents: N(p.cost),
+        priceRetailCents: N(p.retail), priceWholesaleCents: N(p.wholesale), reorderLevel: p.reorder,
+        packs: { create: { name: "Trailer", unitsPerPack: 600, priceRetailCents: N(p.wholesale * 600), priceWholesaleCents: N((p.wholesale - 150) * 600) } } },
     });
     products[p.sku] = created.id;
   }
+  const cost = (sku: string) => N(catalogue.find((c) => c.sku === sku)!.cost);
 
-  // Bulk pack sizes: cartons of 1-litre bottles and gallons.
-  await prisma.productPack.create({ data: { productId: products["EO-2050-1L"], name: "Carton", unitsPerPack: 12, priceRetailCents: N(69000), priceWholesaleCents: N(62000) } });
-  await prisma.productPack.create({ data: { productId: products["EO-2050-4L"], name: "Carton", unitsPerPack: 4, priceRetailCents: N(86000), priceWholesaleCents: N(78000) } });
-  await prisma.productPack.create({ data: { productId: products["ATF-1L"], name: "Carton", unitsPerPack: 12, priceRetailCents: N(80000), priceWholesaleCents: N(72000) } });
+  const dangote = await prisma.supplier.create({ data: { name: "Dangote Cement Plc", contactName: "Distributor desk", phone: "0700 000 0001" } });
+  const lafarge = await prisma.supplier.create({ data: { name: "Lafarge Africa Plc", contactName: "Distributor desk", phone: "0700 000 0002" } });
 
-  const supplier = await prisma.supplier.create({ data: { name: "Apex Lubricants Distribution Ltd", contactName: "Mr. Okafor", phone: "0803 000 0001" } });
-  await prisma.supplier.create({ data: { name: "Delta Industrial Oils", contactName: "Mrs. Bello", phone: "0805 000 0002" } });
+  async function deliver(supplierId: string, lines: [string, number][], paid: number) {
+    const po = await createPurchaseOrder(prisma, {
+      supplierId, locationId: depot.id,
+      lines: lines.map(([sku, bags]) => ({ productId: products[sku], quantity: bags, unitCostCents: cost(sku) })),
+    }, owner.id);
+    const poLines = await prisma.purchaseOrderLine.findMany({ where: { purchaseOrderId: po.id } });
+    await receivePurchaseOrder(prisma, po.id, poLines.map((l) => ({ lineId: l.id, quantity: l.quantity })), owner.id);
+    await paySupplier(prisma, po.id, { amountCents: N(paid), method: "TRANSFER", reference: "Bank transfer" }, owner.id);
+  }
+  await deliver(dangote.id, [["DAN-3X-425", 1800], ["DAN-FAL-325", 600]], 15_000_000);
+  await deliver(lafarge.id, [["LAF-ELE-425", 1200], ["LAF-SUP-425", 600]], 10_000_000);
 
-  // A delivered and part-paid purchase order brings in the opening stock.
-  const opening: [string, number][] = [["EO-2050-4L", 80], ["EO-2050-1L", 240], ["EO-1540-4L", 40], ["EO-530-4L", 8], ["ATF-1L", 60], ["BF-500", 60], ["HYD-25L", 6], ["GR-500", 20]];
-  const po = await createPurchaseOrder(prisma, {
-    supplierId: supplier.id, locationId: warehouse.id, note: "Opening stock",
-    lines: opening.map(([sku, quantity]) => ({ productId: products[sku], quantity, unitCostCents: N(catalogue.find((c) => c.sku === sku)!.cost) })),
-  }, admin.id);
-  const lines = await prisma.purchaseOrderLine.findMany({ where: { purchaseOrderId: po.id } });
-  await receivePurchaseOrder(prisma, po.id, lines.map((l) => ({ lineId: l.id, quantity: l.quantity })), admin.id);
-  await paySupplier(prisma, po.id, { amountCents: N(3_000_000), method: "TRANSFER", reference: "Opening payment" }, admin.id);
-
-  // Move some stock to the shop.
-  for (const [sku, quantity] of [["EO-2050-4L", 24], ["EO-2050-1L", 96], ["ATF-1L", 24], ["BF-500", 24]] as const) {
-    await recordMovement(prisma, { type: "TRANSFER", productId: products[sku], fromLocationId: warehouse.id, toLocationId: shop.id, quantity }, admin.id);
+  for (const [loc, sku, bags] of [[ikeja, "DAN-3X-425", 400], [ikeja, "LAF-ELE-425", 300], [lekki, "DAN-3X-425", 300], [lekki, "LAF-SUP-425", 200]] as const) {
+    await recordMovement(prisma, { type: "TRANSFER", productId: products[sku], fromLocationId: depot.id, toLocationId: loc.id, quantity: bags, reference: "Stock to outlet" }, owner.id);
   }
 
-  const mechanic = await prisma.customer.create({ data: { name: "Chukwu Auto Repairs", type: "WHOLESALE", phone: "0806 000 0003", address: "Ladipo Market, Lagos" } });
-  await prisma.customer.create({ data: { name: "Mrs. Adeyemi", type: "RETAIL", phone: "0807 000 0004" } });
+  const builders = await prisma.customer.create({ data: { name: "Adebayo Builders Ltd", type: "WHOLESALE", phone: "0803 000 1001", address: "Ikorodu Road, Lagos" } });
+  const blocks = await prisma.customer.create({ data: { name: "Okeke Block Industry", type: "WHOLESALE", phone: "0806 000 1002" } });
+  await prisma.customer.create({ data: { name: "Mrs. Bello", type: "RETAIL", phone: "0807 000 1003" } });
+  await createCustomerOpeningBalance(prisma, blocks.id, N(1_250_000), "Balance from old ledger", owner.id);
 
-  await createSale(prisma, { locationId: shop.id, priceLevel: "RETAIL", lines: [{ productId: products["EO-2050-4L"], quantity: 1 }, { productId: products["BF-500"], quantity: 1 }],
-    payment: { amountCents: N(26000), method: "CASH" } }, admin.id);
-  await createSale(prisma, { customerId: mechanic.id, locationId: warehouse.id, priceLevel: "WHOLESALE",
-    lines: [{ productId: products["EO-2050-4L"], quantity: 12 }, { productId: products["EO-1540-4L"], quantity: 6 }],
-    payment: { amountCents: N(200000), method: "TRANSFER", reference: "Part payment" } }, admin.id);
-  console.log("Demo engine-oil catalogue, suppliers, customers, a purchase order and sales created.");
+  const vatRate = 7.5;
+  await createSale(prisma, { customerId: builders.id, locationId: depot.id, priceLevel: "WHOLESALE", vatRate,
+    lines: [{ productId: products["DAN-3X-425"], packId: (await prisma.productPack.findFirstOrThrow({ where: { productId: products["DAN-3X-425"] } })).id, quantity: 1 }],
+    discountCents: N(60_000), allowDiscount: true,
+    payment: { amountCents: N(3_000_000), method: "TRANSFER", reference: "Part payment" } }, users.GM);
+  await createSale(prisma, { customerId: blocks.id, locationId: depot.id, priceLevel: "WHOLESALE", vatRate,
+    lines: [{ productId: products["DAN-FAL-325"], quantity: 150 }, { productId: products["LAF-ELE-425"], quantity: 100 }],
+    payment: { amountCents: N(2_395_000), method: "TRANSFER" } }, users.SALES_REP);
+  await createSale(prisma, { locationId: ikeja.id, priceLevel: "RETAIL", vatRate,
+    lines: [{ productId: products["DAN-3X-425"], quantity: 40 }, { productId: products["LAF-ELE-425"], quantity: 20 }],
+    payment: { amountCents: N(40 * 10300 + 20 * 10500), method: "TRANSFER" } }, users.OUTLET_MANAGER);
+  await createSale(prisma, { locationId: lekki.id, priceLevel: "RETAIL", vatRate,
+    lines: [{ productId: products["LAF-SUP-425"], quantity: 25 }],
+    payment: { amountCents: N(25 * 11000), method: "POS" } }, users.OUTLET_MANAGER_LKI);
+
+  await prisma.expense.createMany({ data: [
+    { kind: "EXPENSE", category: "Haulage and transport", amountCents: N(450_000), date: new Date(), userId: owner.id, note: "Depot to outlets" },
+    { kind: "EXPENSE", category: "Loading and offloading", amountCents: N(120_000), date: new Date(), userId: owner.id },
+    { kind: "EXPENSE", category: "Diesel and fuel", amountCents: N(85_000), date: new Date(), userId: owner.id },
+  ] });
+  console.log("Demo cement depot, outlets, staff, suppliers, customers, deliveries, sales and expenses created.");
 }
 
 main()
