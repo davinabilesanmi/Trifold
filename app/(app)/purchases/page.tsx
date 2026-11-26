@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { can } from "@/lib/permissions";
+import { isRestricted } from "@/lib/scope";
 import { formatMoney } from "@/lib/format";
 import { PageHeader } from "@/components/PageHeader";
 import { PurchaseOrdersTable, poBalance, purchaseOrderRowInclude } from "@/components/PurchaseOrdersTable";
@@ -12,7 +13,8 @@ export default async function PurchasesPage({ searchParams }: { searchParams: Pr
   const user = await requirePermission((u) => can.managePurchasing(u) || can.receivePurchases(u));
   const { status = "open" } = await searchParams;
   const where = status === "open" ? { status: { in: ["ORDERED", "PARTIAL"] } } : status === "all" ? {} : { status: status.toUpperCase() };
-  const orders = await prisma.purchaseOrder.findMany({ where, orderBy: { createdAt: "desc" }, take: 200, include: purchaseOrderRowInclude });
+  const scoped = isRestricted(user) ? { locationId: { in: user.locationIds } } : {};
+  const orders = await prisma.purchaseOrder.findMany({ where: { ...where, ...scoped }, orderBy: { createdAt: "desc" }, take: 200, include: purchaseOrderRowInclude });
   const unpaid = orders.reduce((s, o) => s + Math.max(0, poBalance(o)), 0);
   return (
     <>

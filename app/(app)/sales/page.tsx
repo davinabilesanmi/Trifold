@@ -6,6 +6,7 @@ import { can } from "@/lib/permissions";
 import { saleBalance } from "@/lib/balances";
 import { formatMoney } from "@/lib/format";
 import { parseDateRange } from "@/lib/dates";
+import { saleWhere } from "@/lib/scope";
 import { PageHeader } from "@/components/PageHeader";
 import { SalesTable, saleRowInclude } from "@/components/SalesTable";
 
@@ -15,13 +16,14 @@ const PAGE_SIZE = 50;
 type Search = { q?: string; status?: string; from?: string; to?: string; page?: string };
 
 export default async function SalesPage({ searchParams }: { searchParams: Promise<Search> }) {
-  await requirePermission((u) => can.sell(u) || can.takePayments(u));
+  const user = await requirePermission((u) => can.sell(u) || can.takePayments(u));
   const sp = await searchParams;
   const page = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1);
   const { from, to, createdAt } = parseDateRange(sp.from, sp.to);
   const term = sp.q?.trim();
 
   const where: Prisma.SaleWhereInput = {
+    ...saleWhere(user),
     ...(createdAt ? { createdAt } : {}),
     ...(sp.status === "cancelled" ? { status: "CANCELLED" } : sp.status ? { status: "COMPLETED" } : {}),
     ...(term ? { OR: [{ number: { contains: term } }, { customer: { name: { contains: term } } }] } : {}),

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { can } from "@/lib/permissions";
+import { locationWhere } from "@/lib/scope";
+import { getSettings, vatRateOf } from "@/lib/settings";
 import { createSaleAction } from "@/lib/actions/sales";
 import { PageHeader } from "@/components/PageHeader";
 import { ActionForm } from "@/components/ActionForm";
@@ -22,7 +24,7 @@ export default async function NewSalePage({ searchParams }: { searchParams: Prom
       },
     }),
     prisma.customer.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true, type: true } }),
-    prisma.location.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true, code: true } }),
+    prisma.location.findMany({ where: { active: true, ...locationWhere(user) }, orderBy: { name: "asc" }, select: { id: true, name: true, code: true } }),
     prisma.stockLevel.findMany({ where: { quantity: { not: 0 } }, select: { productId: true, locationId: true, quantity: true } }),
   ]);
   const stock: Record<string, Record<string, number>> = {};
@@ -42,6 +44,8 @@ export default async function NewSalePage({ searchParams }: { searchParams: Prom
               locations={locations}
               stock={stock}
               canOverridePrices={can.overridePrices(user)}
+              canGiveDiscounts={can.giveDiscounts(user)}
+              vatRate={vatRateOf(await getSettings())}
               defaultCustomerId={customers.some((c) => c.id === customer) ? customer : undefined}
             />
             <div className="form-actions">

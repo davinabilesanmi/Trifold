@@ -17,6 +17,8 @@ type Props = {
   /** stock[locationId][productId] = quantity on hand */
   stock: Record<string, Record<string, number>>;
   canOverridePrices: boolean;
+  canGiveDiscounts: boolean;
+  vatRate: number;
   defaultCustomerId?: string;
   defaultLocationId?: string;
 };
@@ -24,7 +26,7 @@ type Props = {
 let nextKey = 1;
 const blankLine = (): Line => ({ key: nextKey++, productId: "", packId: "", quantity: "1", price: "" });
 
-export function SaleFields({ products, customers, locations, stock, canOverridePrices, defaultCustomerId, defaultLocationId }: Props) {
+export function SaleFields({ products, customers, locations, stock, canOverridePrices, canGiveDiscounts, vatRate, defaultCustomerId, defaultLocationId }: Props) {
   const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const [customerId, setCustomerId] = useState(defaultCustomerId ?? "");
   const customer = customers.find((c) => c.id === customerId);
@@ -33,7 +35,8 @@ export function SaleFields({ products, customers, locations, stock, canOverrideP
   const [locationId, setLocationId] = useState(defaultLocationId ?? (locations.length === 1 ? locations[0].id : ""));
   const [lines, setLines] = useState<Line[]>([blankLine()]);
   const [paid, setPaid] = useState<string | null>(null); // null = follow the total
-  const [method, setMethod] = useState<string>("CASH");
+  const [method, setMethod] = useState<string>("TRANSFER");
+  const [discount, setDiscount] = useState("");
 
   const listPrice = (item: { priceRetailCents: number; priceWholesaleCents: number } | undefined) =>
     item ? (level === "WHOLESALE" ? item.priceWholesaleCents : item.priceRetailCents) : 0;
@@ -50,7 +53,10 @@ export function SaleFields({ products, customers, locations, stock, canOverrideP
     const units = (Number.parseInt(l.quantity, 10) || 0) * (packOf(l)?.unitsPerPack ?? 1);
     unitsWanted.set(l.productId, (unitsWanted.get(l.productId) ?? 0) + units);
   }
-  const total = lines.reduce((s, l) => s + (Number.parseInt(l.quantity, 10) || 0) * priceOf(l), 0);
+  const subtotal = lines.reduce((s, l) => s + (Number.parseInt(l.quantity, 10) || 0) * priceOf(l), 0);
+  const discountCents = canGiveDiscounts ? parseMoneyToCents(discount) ?? 0 : 0;
+  const total = Math.max(0, subtotal - discountCents);
+  const vat = vatRate ? Math.round((total * vatRate) / (100 + vatRate)) : 0;
   const paidCents = paid === null ? total : parseMoneyToCents(paid) ?? 0;
   const balance = total - paidCents;
 
@@ -65,6 +71,7 @@ export function SaleFields({ products, customers, locations, stock, canOverrideP
       <input type="hidden" name="lines" value={payload} />
       <input type="hidden" name="priceLevel" value={level} />
       <input type="hidden" name="amountPaid" value={paid === null ? centsToInput(total) : paid} />
+      <input type="hidden" name="discount" value={canGiveDiscounts ? discount : ""} />
 
       <div className="form-row">
         <div className="field">
@@ -149,9 +156,25 @@ export function SaleFields({ products, customers, locations, stock, canOverrideP
             })}
             <tr>
               <td colSpan={3}><button type="button" className="btn btn-secondary" onClick={() => setLines((ls) => [...ls, blankLine()])}>+ Add product</button></td>
-              <td className="num nowrap"><strong>{formatMoney(total)}</strong></td>
+              <td className="num nowrap">{discountCents > 0 ? formatMoney(subtotal) : <strong>{formatMoney(total)}</strong>}</td>
               <td />
             </tr>
+            {canGiveDiscounts && (
+              <tr>
+                <td colSpan={3} className="num"><label htmlFor="discount">Discount (₦)</label></td>
+                <td className="num" style={{ width: 150 }}>
+                  <input id="discount" type="text" inputMode="decimal" value={discount} placeholder="0.00" style={{ textAlign: "right" }}
+                    onChange={(e) => setDiscount(e.target.value)} />
+                </td>
+                <td />
+              </tr>
+            )}
+            {discountCents > 0 && (
+              <tr><td colSpan={3} className="num"><strong>Total</strong></td><td className="num nowrap"><strong>{formatMoney(total)}</strong></td><td /></tr>
+            )}
+            {vatRate > 0 && (
+              <tr><td colSpan={3} className="num muted small">Includes VAT at {vatRate}%</td><td className="num nowrap muted small">{formatMoney(vat)}</td><td /></tr>
+            )}
           </tbody>
         </table>
       </div>

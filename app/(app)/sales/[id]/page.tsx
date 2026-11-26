@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { getSettings } from "@/lib/settings";
+import { canSeeSale } from "@/lib/scope";
 import { saleBalance } from "@/lib/balances";
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, PRICE_LEVEL_LABELS, isPriceLevel } from "@/lib/money";
 import { formatDateTime, formatMoney, formatNumber } from "@/lib/format";
@@ -30,7 +31,7 @@ export default async function SalePage({ params, searchParams }: { params: Promi
     }),
     getSettings(),
   ]);
-  if (!sale) notFound();
+  if (!sale || !canSeeSale(user, sale)) notFound();
   const paid = sale.payments.reduce((s, p) => s + p.amountCents, 0);
   const balance = saleBalance(sale);
   const cancelled = sale.status === "CANCELLED";
@@ -47,6 +48,7 @@ export default async function SalePage({ params, searchParams }: { params: Promi
         </div>
         <div className="page-actions">
           <PrintButton label="Print invoice" />
+          {!opening && <Link href={`/receipts/${sale.id}`} className="btn btn-secondary" target="_blank">Print receipt</Link>}
           <Link href="/sales/new" className="btn btn-primary">New sale</Link>
         </div>
       </div>
@@ -103,7 +105,16 @@ export default async function SalePage({ params, searchParams }: { params: Promi
                   <td className="num nowrap">{formatMoney(l.quantity * l.unitPriceCents)}</td>
                 </tr>
               ))}
-              <tr className="invoice-total"><td colSpan={3} className="num">Total</td><td className="num nowrap">{formatMoney(sale.totalCents)}</td></tr>
+              {sale.discountCents > 0 && (
+                <>
+                  <tr><td colSpan={3} className="num">Subtotal</td><td className="num nowrap">{formatMoney(sale.totalCents + sale.discountCents)}</td></tr>
+                  <tr><td colSpan={3} className="num">Discount</td><td className="num nowrap">−{formatMoney(sale.discountCents)}</td></tr>
+                </>
+              )}
+              <tr className="invoice-total"><td colSpan={3} className="num">Total{sale.vatRate > 0 ? " (VAT inclusive)" : ""}</td><td className="num nowrap">{formatMoney(sale.totalCents)}</td></tr>
+              {sale.vatRate > 0 && (
+                <tr><td colSpan={3} className="num muted">Includes VAT at {sale.vatRate}%</td><td className="num nowrap muted">{formatMoney(sale.vatCents)}</td></tr>
+              )}
               {!cancelled && (
                 <>
                   <tr><td colSpan={3} className="num">Paid</td><td className="num nowrap">{formatMoney(paid)}</td></tr>

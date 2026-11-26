@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requirePermission } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { activeOptions } from "@/lib/queries";
+import { canUseLocation } from "@/lib/scope";
 import { createMovement } from "@/lib/actions/movements";
 import { MOVEMENT_DESCRIPTIONS, MOVEMENT_LABELS, MOVEMENT_TYPES, isMovementType, type MovementType } from "@/lib/stock";
 import { PageHeader } from "@/components/PageHeader";
@@ -26,10 +27,11 @@ function Select({ name, label, options, defaultValue }: { name: string; label: s
 }
 
 export default async function NewMovementPage({ searchParams }: { searchParams: Promise<Search> }) {
-  await requirePermission(can.recordMovements);
+  const user = await requirePermission(can.recordMovements);
   const sp = await searchParams;
   const type: MovementType = isMovementType(sp.type) ? sp.type : "RECEIPT";
-  const { products, locations } = await activeOptions();
+  const { products, locations: allLocations } = await activeOptions();
+  const locations = allLocations.filter((l) => canUseLocation(user, l.id));
   const productOptions = products.map((p) => ({ id: p.id, label: `${p.name} (${p.sku})` }));
   const locationOptions = locations.map((l) => ({ id: l.id, label: `${l.name} (${l.code})` }));
   const returnTo = sp.returnTo?.startsWith("/") && !sp.returnTo.startsWith("//") ? sp.returnTo : undefined;
@@ -68,7 +70,8 @@ export default async function NewMovementPage({ searchParams }: { searchParams: 
                 <Select name="fromLocationId" label={type === "TRANSFER" ? "From location" : "Location"} options={locationOptions} />
               )}
               {(type === "RECEIPT" || type === "TRANSFER") && (
-                <Select name="toLocationId" label={type === "TRANSFER" ? "To location" : "Location"} options={locationOptions} />
+                <Select name="toLocationId" label={type === "TRANSFER" ? "To location" : "Location"}
+                  options={type === "TRANSFER" ? allLocations.map((l) => ({ id: l.id, label: `${l.name} (${l.code})` })) : locationOptions} />
               )}
               {type === "ADJUSTMENT" && <Select name="locationId" label="Location" options={locationOptions} />}
               {type === "ADJUSTMENT" ? (

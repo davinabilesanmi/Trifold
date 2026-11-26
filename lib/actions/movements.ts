@@ -8,6 +8,7 @@ import { requirePermission } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { firstIssue, formToObject, type FormState } from "@/lib/forms";
 import { recordMovement, StockError, type MovementInput } from "@/lib/stock";
+import { canUseLocation } from "@/lib/scope";
 
 const id = (label: string) => z.string().min(1, `Choose a ${label}.`);
 const qty = z.coerce
@@ -45,6 +46,9 @@ export async function createMovement(_prev: FormState, formData: FormData): Prom
   const user = await requirePermission(can.recordMovements);
   const parsed = movementSchema.safeParse(formToObject(formData));
   if (!parsed.success) return { error: firstIssue(parsed.error) };
+  const d = parsed.data;
+  const own = d.type === "RECEIPT" ? d.toLocationId : d.type === "ADJUSTMENT" ? d.locationId : d.fromLocationId;
+  if (!canUseLocation(user, own)) return { error: "You can only move stock at the locations you work at." };
 
   try {
     await recordMovement(prisma, parsed.data as MovementInput, user.id);

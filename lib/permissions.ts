@@ -7,14 +7,18 @@ export const PERMISSIONS = [
   { key: "takePayments", group: "Selling", label: "Record customer payments" },
   { key: "manageCustomers", group: "Selling", label: "Add and edit customers" },
   { key: "overridePrices", group: "Selling", label: "Change prices on a sale" },
+  { key: "giveDiscounts", group: "Selling", label: "Give discounts on sales" },
   { key: "cancelSales", group: "Selling", label: "Cancel sales (returns stock, refunds payments)" },
+  { key: "viewAllSales", group: "Selling", label: "See everyone's sales (otherwise only their own)" },
   { key: "recordMovements", group: "Stock", label: "Move, issue and adjust stock" },
   { key: "manageCatalog", group: "Stock", label: "Add products, set prices and pack sizes" },
   { key: "manageLocations", group: "Stock", label: "Set up warehouses, shops and branches" },
   { key: "receivePurchases", group: "Buying", label: "Receive deliveries from suppliers" },
   { key: "managePurchasing", group: "Buying", label: "Manage suppliers, purchase orders and supplier payments" },
   { key: "openingBalances", group: "Money", label: "Enter opening balances for customers and suppliers" },
-  { key: "viewReports", group: "Money", label: "See reports, profit, stock value and money owed" },
+  { key: "viewReports", group: "Money", label: "See daily sales and stock reports, and money owed" },
+  { key: "viewFinancials", group: "Money", label: "See income statement, balance sheet and profit" },
+  { key: "manageExpenses", group: "Money", label: "Record expenses and other money in or out" },
   { key: "manageUsers", group: "Admin", label: "Add staff and assign responsibilities" },
   { key: "manageSettings", group: "Admin", label: "Change business details and invoice settings" },
 ] as const;
@@ -26,30 +30,40 @@ export function isPermission(v: unknown): v is Permission {
   return typeof v === "string" && (PERMISSION_KEYS as string[]).includes(v);
 }
 
-export const ROLES = ["ADMIN", "MANAGER", "STAFF"] as const;
+export const ROLES = ["OWNER", "SYSADMIN", "GM", "OUTLET_MANAGER", "SALES_REP"] as const;
 export type Role = (typeof ROLES)[number];
 export type RoleLabel = Role | "CUSTOM";
 
-const STAFF: Permission[] = ["sell", "takePayments", "manageCustomers", "recordMovements", "receivePurchases"];
-const MANAGER: Permission[] = [...STAFF, "overridePrices", "cancelSales", "manageCatalog", "managePurchasing", "openingBalances", "viewReports"];
+const SALES_REP: Permission[] = ["sell", "takePayments", "manageCustomers"];
+const OUTLET_MANAGER: Permission[] = [...SALES_REP, "giveDiscounts", "viewAllSales", "recordMovements", "receivePurchases", "viewReports"];
+const GM: Permission[] = [
+  ...OUTLET_MANAGER, "overridePrices", "cancelSales", "manageCatalog", "managePurchasing", "openingBalances",
+];
+const SYSADMIN: Permission[] = ["manageUsers", "manageSettings", "manageLocations", "manageCatalog", "viewAllSales"];
 
 export const ROLE_PRESETS: Record<Role, Permission[]> = {
-  ADMIN: [...PERMISSION_KEYS],
-  MANAGER,
-  STAFF,
+  OWNER: [...PERMISSION_KEYS],
+  SYSADMIN,
+  GM,
+  OUTLET_MANAGER,
+  SALES_REP,
 };
 
 export const ROLE_LABELS: Record<RoleLabel, string> = {
-  ADMIN: "Admin",
-  MANAGER: "Manager",
-  STAFF: "Staff",
+  OWNER: "Owner",
+  SYSADMIN: "Systems admin",
+  GM: "General manager",
+  OUTLET_MANAGER: "Outlet manager",
+  SALES_REP: "Sales rep / marketer",
   CUSTOM: "Custom",
 };
 
 export const ROLE_DESCRIPTIONS: Record<RoleLabel, string> = {
-  ADMIN: "Everything, including staff accounts and settings.",
-  MANAGER: "Day-to-day running: prices, buying, cancellations and reports.",
-  STAFF: "Sell, take payments, receive deliveries and move stock.",
+  OWNER: "Everything, including financial statements, staff and settings.",
+  SYSADMIN: "Sets up staff accounts, locations, products and settings.",
+  GM: "Overall view of sales, stock, buying and reports. No income statement or balance sheet.",
+  OUTLET_MANAGER: "Runs their outlet: sales, discounts, deliveries, stock and the outlet's daily reports.",
+  SALES_REP: "Makes sales, takes payments and manages customers. Sees only their own sales.",
   CUSTOM: "A hand-picked set of responsibilities.",
 };
 

@@ -16,7 +16,18 @@ export type SaleInput = {
   payment?: { amountCents: number; method: PaymentMethod; reference?: string | null };
   /** Whether the user may change the list price on a line. */
   allowPriceOverride?: boolean;
+  /** Discount off the whole sale, in kobo. Needs allowDiscount. */
+  discountCents?: number;
+  allowDiscount?: boolean;
+  /** VAT rate (%) contained in the prices, e.g. 7.5. Prices are VAT-inclusive. */
+  vatRate?: number;
 };
+
+/** The VAT inside a VAT-inclusive amount, e.g. 7.5% of ₦10,750 is ₦750. */
+export function vatIncluded(amountCents: number, ratePercent: number) {
+  if (!ratePercent) return 0;
+  return Math.round((amountCents * ratePercent) / (100 + ratePercent));
+}
 
 function assertAmount(n: number, label: string) {
   if (!Number.isInteger(n) || n < 0) throw new StockError(`${label} must be zero or more.`);
@@ -60,7 +71,13 @@ export async function createSale(db: PrismaClient, input: SaleInput, userId: str
       lines.push({ product, pack, unitsPerPack, quantity: line.quantity, unitPriceCents });
     }
 
-    const totalCents = lines.reduce((s, l) => s + l.quantity * l.unitPriceCents, 0);
+    const subtotalCents = lines.reduce((s, l) => s + l.quantity * l.unitPriceCents, 0);
+    const discountCents = input.discountCents ?? 0;
+    assertAmount(discountCents, "Discount");
+    if (discountCents > 0 && !input.allowDiscount) throw new StockError("Only management can give discounts.");
+    if (discountCents >= subtotalCents) throw new StockError("The discount must be less than the sale total.");
+    const totalCents = subtotalCents - discountCents;
+    const vatRate = input.vatRate ?? 0;
     const paid = input.payment?.amountCents ?? 0;
     assertAmount(paid, "Amount paid");
     if (paid > totalCents) throw new StockError(`Amount paid (${formatMoney(paid)}) is more than the total (${formatMoney(totalCents)}).`);
@@ -76,6 +93,9 @@ export async function createSale(db: PrismaClient, input: SaleInput, userId: str
         locationId: input.locationId,
         priceLevel: input.priceLevel,
         totalCents,
+        discountCents,
+        vatRate,
+        vatCents: vatIncluded(totalCents, vatRate),
         note: input.note?.trim() || null,
         userId,
         lines: {

@@ -16,8 +16,8 @@ async function main() {
     where: { email },
     update: {},
     create: {
-      email, name: "Trifold Admin", jobTitle: "Managing Director", role: "ADMIN",
-      permissions: serializePermissions(ROLE_PRESETS.ADMIN), passwordHash: await bcrypt.hash(password, 10),
+      email, name: "Trifold Admin", jobTitle: "Managing Director", role: "OWNER",
+      permissions: serializePermissions(ROLE_PRESETS.OWNER), passwordHash: await bcrypt.hash(password, 10),
     },
   });
   console.log(`Admin account: ${email}`);

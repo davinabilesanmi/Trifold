@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
+import { isRestricted } from "@/lib/scope";
 import { MOVEMENT_LABELS, MOVEMENT_TYPES, isMovementType } from "@/lib/stock";
 import { PageHeader } from "@/components/PageHeader";
 import { MovementTable, movementRowInclude } from "@/components/MovementTable";
@@ -18,6 +19,7 @@ export default async function MovementsPage({ searchParams }: { searchParams: Pr
   const page = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1);
 
   const where: Prisma.MovementWhereInput = {
+    ...(isRestricted(user) ? { AND: [{ OR: [{ fromLocationId: { in: user.locationIds } }, { toLocationId: { in: user.locationIds } }] }] } : {}),
     ...(isMovementType(sp.type) ? { type: sp.type } : {}),
     ...(sp.product ? { productId: sp.product } : {}),
     ...(sp.location ? { OR: [{ fromLocationId: sp.location }, { toLocationId: sp.location }] } : {}),

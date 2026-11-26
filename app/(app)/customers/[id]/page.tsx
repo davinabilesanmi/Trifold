@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { customerBalances } from "@/lib/balances";
+import { saleWhere } from "@/lib/scope";
 import { customerOpeningBalanceAction, setCustomerActive, updateCustomer } from "@/lib/actions/parties";
 import { OpeningBalanceForm } from "@/components/OpeningBalanceForm";
 import { formatMoney } from "@/lib/format";
@@ -20,7 +21,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
   const customer = await prisma.customer.findUnique({ where: { id } });
   if (!customer) notFound();
   const [sales, balances] = await Promise.all([
-    prisma.sale.findMany({ where: { customerId: id }, orderBy: { createdAt: "desc" }, take: 50, include: saleRowInclude }),
+    prisma.sale.findMany({ where: { customerId: id, ...saleWhere(user) }, orderBy: { createdAt: "desc" }, take: 50, include: saleRowInclude }),
     customerBalances([id]),
   ]);
   const balance = balances.get(id) ?? 0;

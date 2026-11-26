@@ -11,6 +11,7 @@ import { parseMoneyToCents } from "@/lib/format";
 import { PAYMENT_METHODS } from "@/lib/money";
 import { closePurchaseOrder, createPurchaseOrder, paySupplier, receivePurchaseOrder } from "@/lib/purchasing";
 import { StockError } from "@/lib/stock";
+import { canUseLocation } from "@/lib/scope";
 
 const poSchema = z.object({
   supplierId: z.string().min(1, "Choose a supplier."),
@@ -58,6 +59,8 @@ export async function createPurchaseOrderAction(_prev: FormState, formData: Form
 
 export async function receivePurchaseOrderAction(poId: string, _prev: FormState, formData: FormData): Promise<FormState> {
   const user = await requirePermission(can.receivePurchases);
+  const po = await prisma.purchaseOrder.findUnique({ where: { id: poId }, select: { locationId: true } });
+  if (!po || !canUseLocation(user, po.locationId)) return { error: "You can only receive deliveries at the locations you work at." };
   const receipts: { lineId: string; quantity: number }[] = [];
   for (const [key, value] of formData.entries()) {
     if (!key.startsWith("receive:") || typeof value !== "string" || value.trim() === "") continue;

@@ -3,10 +3,10 @@ import { can, parsePermissions, roleFor, ROLE_PRESETS, serializePermissions } fr
 
 describe("responsibilities", () => {
   it("names presets and falls back to Custom", () => {
-    expect(roleFor(ROLE_PRESETS.ADMIN)).toBe("ADMIN");
-    expect(roleFor(ROLE_PRESETS.MANAGER)).toBe("MANAGER");
-    expect(roleFor([...ROLE_PRESETS.STAFF].reverse())).toBe("STAFF");
-    expect(roleFor([...ROLE_PRESETS.STAFF, "viewReports"])).toBe("CUSTOM");
+    expect(roleFor(ROLE_PRESETS.OWNER)).toBe("OWNER");
+    expect(roleFor(ROLE_PRESETS.GM)).toBe("GM");
+    expect(roleFor([...ROLE_PRESETS.SALES_REP].reverse())).toBe("SALES_REP");
+    expect(roleFor([...ROLE_PRESETS.SALES_REP, "viewReports"])).toBe("CUSTOM");
   });
 
   it("round-trips stored lists and ignores unknown entries", () => {
@@ -15,11 +15,15 @@ describe("responsibilities", () => {
     expect(parsePermissions(`${stored},deleteEverything, `)).toEqual(["sell", "viewReports"]);
   });
 
-  it("checks individual responsibilities", () => {
-    const storekeeper = { permissions: parsePermissions("receivePurchases,recordMovements") };
-    expect(can.receivePurchases(storekeeper)).toBe(true);
-    expect(can.sell(storekeeper)).toBe(false);
-    expect(can.manageLocations({ permissions: ROLE_PRESETS.MANAGER })).toBe(false);
-    expect(can.manageLocations({ permissions: ROLE_PRESETS.ADMIN })).toBe(true);
+  it("matches what Trifold asked for", () => {
+    const gm = { permissions: ROLE_PRESETS.GM };
+    expect(can.viewReports(gm)).toBe(true);
+    expect(can.viewAllSales(gm)).toBe(true);
+    expect(can.viewFinancials(gm)).toBe(false); // no income statement or balance sheet
+    expect(can.giveDiscounts({ permissions: ROLE_PRESETS.SALES_REP })).toBe(false); // management gives discounts
+    expect(can.giveDiscounts({ permissions: ROLE_PRESETS.OUTLET_MANAGER })).toBe(true);
+    expect(can.viewAllSales({ permissions: ROLE_PRESETS.SALES_REP })).toBe(false);
+    expect(can.viewFinancials({ permissions: ROLE_PRESETS.OWNER })).toBe(true);
+    expect(can.manageLocations({ permissions: ROLE_PRESETS.GM })).toBe(false);
   });
 });

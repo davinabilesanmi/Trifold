@@ -15,6 +15,13 @@ const baseUser = {
 };
 const password = z.string().min(8, "Password must be at least 8 characters.");
 
+async function locationIdsFrom(formData: FormData) {
+  const ids = [...new Set(formData.getAll("loc").filter((v): v is string => typeof v === "string" && v !== ""))];
+  if (ids.length === 0) return "";
+  const found = await prisma.location.findMany({ where: { id: { in: ids } }, select: { id: true } });
+  return found.map((l) => l.id).join(",");
+}
+
 function permissionsFrom(formData: FormData): Permission[] {
   return [...new Set(formData.getAll("perm").filter(isPermission))];
 }
@@ -28,7 +35,10 @@ export async function createUser(_prev: FormState, formData: FormData): Promise<
   const { password: pw, ...data } = parsed.data;
   try {
     await prisma.user.create({
-      data: { ...data, role: roleFor(perms), permissions: serializePermissions(perms), passwordHash: await hashPassword(pw) },
+      data: {
+        ...data, role: roleFor(perms), permissions: serializePermissions(perms),
+        locationIds: await locationIdsFrom(formData), passwordHash: await hashPassword(pw),
+      },
     });
   } catch (e) {
     if (isUniqueViolation(e)) return { error: `A user with email ${data.email} already exists.` };
@@ -62,7 +72,10 @@ export async function updateUser(id: string, _prev: FormState, formData: FormDat
     await prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id },
-        data: { name, email, jobTitle, active, passwordHash, role: roleFor(perms), permissions: serializePermissions(perms) },
+        data: {
+          name, email, jobTitle, active, passwordHash, role: roleFor(perms), permissions: serializePermissions(perms),
+          locationIds: await locationIdsFrom(formData),
+        },
       });
       // Sign the user out everywhere if they were deactivated or their password was reset.
       if (!active || passwordHash) await tx.session.deleteMany({ where: { userId: id } });

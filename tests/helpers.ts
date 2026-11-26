@@ -8,6 +8,7 @@ export const prisma = new PrismaClient({
 /** Empties every table, children first. */
 export async function resetDb() {
   await prisma.payment.deleteMany();
+  await prisma.expense.deleteMany();
   await prisma.supplierPayment.deleteMany();
   await prisma.movement.deleteMany();
   await prisma.saleLine.deleteMany();

@@ -21,6 +21,8 @@ model User {
   role             String            @default("STAFF")
   jobTitle         String?
   permissions      String            @default("")
+  /// Comma-separated Location ids this person works at; empty means all locations.
+  locationIds      String            @default("")
   active           Boolean           @default(true)
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
@@ -30,6 +32,7 @@ model User {
   payments         Payment[]
   purchaseOrders   PurchaseOrder[]
   supplierPayments SupplierPayment[]
+  expenses         Expense[]
 }
 
 /// `id` is the SHA-256 hash of the session token stored in the cookie.
@@ -56,6 +59,7 @@ model Location {
   movementsTo    Movement[]      @relation("MovementTo")
   sales          Sale[]
   purchaseOrders PurchaseOrder[]
+  expenses       Expense[]
 }
 
 model Product {
@@ -156,25 +160,30 @@ model Customer {
 /// kind is SALE, or OPENING_BALANCE for money a customer owed before Trifold started
 /// using the system (no lines, no location, no stock).
 model Sale {
-  id           String     @id @default(cuid())
-  kind         String     @default("SALE")
-  number       String     @unique
-  customerId   String?
-  customer     Customer?  @relation(fields: [customerId], references: [id])
-  locationId   String?
-  location     Location?  @relation(fields: [locationId], references: [id])
-  priceLevel   String
-  status       String     @default("COMPLETED")
-  totalCents   Float
-  note         String?
-  userId       String
-  user         User       @relation(fields: [userId], references: [id])
-  createdAt    DateTime   @default(now())
-  cancelledAt  DateTime?
-  cancelReason String?
-  lines        SaleLine[]
-  payments     Payment[]
-  movements    Movement[]
+  id            String     @id @default(cuid())
+  kind          String     @default("SALE")
+  number        String     @unique
+  customerId    String?
+  customer      Customer?  @relation(fields: [customerId], references: [id])
+  locationId    String?
+  location      Location?  @relation(fields: [locationId], references: [id])
+  priceLevel    String
+  status        String     @default("COMPLETED")
+  totalCents    Float
+  /// Discount given on the whole sale; totalCents is after the discount.
+  discountCents Float      @default(0)
+  /// VAT rate (%) in force when sold, and the VAT contained in totalCents (prices include VAT).
+  vatRate       Float      @default(0)
+  vatCents      Float      @default(0)
+  note          String?
+  userId        String
+  user          User       @relation(fields: [userId], references: [id])
+  createdAt     DateTime   @default(now())
+  cancelledAt   DateTime?
+  cancelReason  String?
+  lines         SaleLine[]
+  payments      Payment[]
+  movements     Movement[]
 
   @@index([createdAt])
   @@index([customerId])
@@ -305,4 +314,25 @@ model ProductPack {
   purchaseLines       PurchaseOrderLine[]
 
   @@unique([productId, name])
+}
+
+/// Money in or out that isn't a sale or supplier payment.
+/// kind: EXPENSE (in the income statement), OTHER_INCOME, CAPITAL (owner puts money in),
+/// DRAWING (owner takes money out) or VAT_REMITTANCE (VAT paid to FIRS).
+model Expense {
+  id          String    @id @default(cuid())
+  kind        String    @default("EXPENSE")
+  category    String
+  amountCents Float
+  method      String    @default("TRANSFER")
+  reference   String?
+  note        String?
+  date        DateTime
+  locationId  String?
+  location    Location? @relation(fields: [locationId], references: [id])
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  createdAt   DateTime  @default(now())
+
+  @@index([date])
 }

@@ -8,6 +8,8 @@ import { PageHeader } from "@/components/PageHeader";
 import { ActionForm } from "@/components/ActionForm";
 import { SubmitButton } from "@/components/SubmitButton";
 import { PermissionPicker } from "@/components/PermissionPicker";
+import { LocationPicker } from "@/components/LocationPicker";
+import { parseIds } from "@/lib/auth";
 
 export default async function EditUserPage({ params }: { params: Promise<{ id: string }> }) {
   const me = await requirePermission(can.manageUsers);
@@ -15,6 +17,7 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) notFound();
   const self = user.id === me.id;
+  const locations = await prisma.location.findMany({ where: { OR: [{ active: true }, { id: { in: parseIds(user.locationIds) } }] }, orderBy: { name: "asc" } });
 
   return (
     <>
@@ -30,6 +33,7 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
           </div>
           <div className="field"><label htmlFor="email">Email (used to sign in)</label><input id="email" name="email" type="email" required defaultValue={user.email} /></div>
           <PermissionPicker initial={parsePermissions(user.permissions)} lockedForSelf={self ? ["manageUsers"] : []} />
+          <LocationPicker locations={locations} selected={parseIds(user.locationIds)} />
           <label className="checkbox">
             {self ? (
               <><input type="checkbox" checked disabled /><input type="hidden" name="active" value="on" /></>

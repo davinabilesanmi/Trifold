@@ -10,7 +10,16 @@ import { parsePermissions, type Permission, type PermissionHolder } from "./perm
 const COOKIE_NAME = "trifold_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 
-export type CurrentUser = { id: string; name: string; email: string; role: string; jobTitle: string | null; permissions: Permission[] };
+export type CurrentUser = {
+  id: string; name: string; email: string; role: string; jobTitle: string | null;
+  permissions: Permission[];
+  /** Locations this person works at; empty means all. */
+  locationIds: string[];
+};
+
+export function parseIds(stored: string) {
+  return stored.split(",").map((s) => s.trim()).filter(Boolean);
+}
 
 function hashToken(token: string) {
   return crypto.createHash("sha256").update(token).digest("hex");
@@ -54,8 +63,8 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     include: { user: true },
   });
   if (!session || session.expiresAt < new Date() || !session.user.active) return null;
-  const { id, name, email, role, jobTitle, permissions } = session.user;
-  return { id, name, email, role, jobTitle, permissions: parsePermissions(permissions) };
+  const { id, name, email, role, jobTitle, permissions, locationIds } = session.user;
+  return { id, name, email, role, jobTitle, permissions: parsePermissions(permissions), locationIds: parseIds(locationIds) };
 });
 
 /** Redirects to the login page if nobody is signed in. */

@@ -6,11 +6,14 @@ import { PageHeader } from "@/components/PageHeader";
 import { ActionForm } from "@/components/ActionForm";
 import { SubmitButton } from "@/components/SubmitButton";
 import { PermissionPicker } from "@/components/PermissionPicker";
+import { LocationPicker } from "@/components/LocationPicker";
+import { prisma } from "@/lib/db";
 
 export const metadata = { title: "Add staff" };
 
 export default async function NewUserPage() {
   await requirePermission(can.manageUsers);
+  const locations = await prisma.location.findMany({ where: { active: true }, orderBy: { name: "asc" } });
   return (
     <>
       <PageHeader title="Add staff member" subtitle="Share the temporary password with them privately; they can change it from their account page." />
@@ -31,7 +34,8 @@ export default async function NewUserPage() {
               <span className="hint">At least 8 characters.</span>
             </div>
           </div>
-          <PermissionPicker initial={ROLE_PRESETS.STAFF} />
+          <PermissionPicker initial={ROLE_PRESETS.SALES_REP} />
+          <LocationPicker locations={locations} />
           <div className="form-actions">
             <SubmitButton>Create account</SubmitButton>
             <Link href="/users" className="btn btn-secondary">Cancel</Link>
