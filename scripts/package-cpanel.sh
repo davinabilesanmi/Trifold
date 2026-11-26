@@ -13,14 +13,18 @@ rm -rf dist && mkdir -p "$OUT"
 cp -R .next/standalone/. "$OUT/"
 mkdir -p "$OUT/.next" && cp -R .next/static "$OUT/.next/static"
 cp -R public "$OUT/public"
-# Schema and migrations, for reference and for running migrations from the server if needed.
+# Schema, migrations and the database setup command (run from the cPanel Terminal).
 mkdir -p "$OUT/prisma" && cp -R prisma/schema.prisma prisma/migrations "$OUT/prisma/"
+cp scripts/setup-database.js "$OUT/setup-database.js"
+# The owner preset's responsibilities, so the setup command matches the app exactly.
+npx tsx -e 'import { ROLE_PRESETS, serializePermissions } from "./lib/permissions"; console.log(JSON.stringify({ role: "OWNER", permissions: serializePermissions(ROLE_PRESETS.OWNER) }))' > "$OUT/setup-owner.json"
 # Passenger restarts the app when this file is touched.
 mkdir -p "$OUT/tmp" && touch "$OUT/tmp/restart.txt"
 cat > "$OUT/README.txt" <<'TXT'
 Trifold Global - cPanel package
 Application startup file: server.js
 Set DATABASE_URL, DIRECT_URL and NODE_ENV=production in the Node.js app's environment variables.
+Set up or update the database from the cPanel Terminal:  node setup-database.js
 Full instructions: DEPLOY-CPANEL.md in the GitHub repository.
 TXT
 

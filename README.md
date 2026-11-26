@@ -76,9 +76,10 @@ products, a depot, two outlets, deliveries, sales and expenses) and one demo acc
 | `npm run db:seed` | Create the owner account (and demo data unless `SEED_DEMO_DATA="false"`) |
 | `npm run package:cpanel` | Build `dist/trifold-cpanel.zip` for uploading to cPanel |
 
-GitHub Actions does the same on every push to `main`: **"Build cPanel package"** tests the app
-and attaches the zip to the run, and **"Set up or update the database"** (run by hand) applies
-migrations to Supabase using repository secrets.
+GitHub Actions runs **"Build cPanel package"** on every push to `main`: it tests the app and attaches
+the zip to the run. No secrets are stored in GitHub: on the server, `node setup-database.js` (included
+in the package) applies migrations and creates the owner account, using the connection string set in
+cPanel or pasted in for that run only.
 
 ## Project layout
 
@@ -103,7 +104,8 @@ lib/
   actions/               Server actions for each area
 prisma/                  Schema, migrations, seed
 scripts/package-cpanel.sh  Builds the cPanel upload
-.github/workflows/       Package build and database setup
+scripts/setup-database.js  Database setup command run from the cPanel Terminal
+.github/workflows/       Builds and tests the cPanel package
 tests/                   Vitest tests
 ```
 

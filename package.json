@@ -13,8 +13,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset",
-    "package:cpanel": "bash scripts/package-cpanel.sh",
-    "db:setup-production": "prisma migrate deploy && SEED_DEMO_DATA=false prisma db seed"
+    "package:cpanel": "bash scripts/package-cpanel.sh"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
